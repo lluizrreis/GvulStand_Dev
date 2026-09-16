@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatório de Auditoria e Conformidade SLA (ISO 27001) - GvulStand</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          },
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+              900: '#4c1d95'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <style>
+    /* ==================================================== */
+    /* IMPRESSÃO & EXPORTAÇÃO EM PDF OTIMIZADA PARA A4      */
+    /* ==================================================== */
+    @page {
+      size: A4 portrait;
+      margin: 8mm 8mm 8mm 8mm;
+    }
+
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        box-sizing: border-box !important;
+      }
+      html, body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 8pt !important;
+        line-height: 1.25 !important;
+      }
+      .report-container {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+      }
+      /* Uniformização de fontes para impressão */
+      h1, h2 { font-size: 10.5pt !important; line-height: 1.2 !important; }
+      h3, h4 { font-size: 9pt !important; line-height: 1.2 !important; }
+      p, td, th, span, div, li {
+        font-size: 7.8pt !important;
+        line-height: 1.25 !important;
+      }
+      .font-mono {
+        font-size: 7.2pt !important;
+      }
+      /* Evita quebras indesejadas em blocos estruturais */
+      .avoid-break, section, .card-box {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      .page-break-before {
+        break-before: page !important;
+        page-break-before: always !important;
+      }
+      table {
+        page-break-inside: auto;
+        border-collapse: collapse !important;
+        width: 100% !important;
+      }
+      tr {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      th, td {
+        padding: 4px 6px !important;
+        border-color: #cbd5e1 !important;
+      }
+      .space-y-4 > * + * { margin-top: 5px !important; }
+      .space-y-3 > * + * { margin-top: 4px !important; }
+      .space-y-2 > * + * { margin-top: 2px !important; }
+      .mb-5 { margin-bottom: 5px !important; }
+      .mb-4 { margin-bottom: 4px !important; }
+      .mb-3 { margin-bottom: 3px !important; }
+      .p-4, .p-5, .p-6, .p-8 { padding: 5px 7px !important; }
+
+      /* Grids A4 preservados */
+      .print-grid-12 {
+        display: grid !important;
+        grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+      }
+      .print-col-3 { grid-column: span 3 / span 3 !important; }
+      .print-col-4 { grid-column: span 4 / span 4 !important; }
+      .print-col-6 { grid-column: span 6 / span 6 !important; }
+      .print-col-8 { grid-column: span 8 / span 8 !important; }
+      .print-col-12 { grid-column: span 12 / span 12 !important; }
+      .print-grid-4 {
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+      }
+      .print-grid-3 {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+      }
+      .print-grid-2 {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+      }
+    }
+
+    @media screen {
+      .report-container {
+        max-width: 1400px;
+        width: 95%;
+      }
+      .report-container.a4-preview {
+        max-width: 210mm;
+      }
+      .report-container.a4-preview .print-grid-12 {
+        display: grid !important;
+        grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+      }
+      .report-container.a4-preview .print-col-3 { grid-column: span 3 / span 3 !important; }
+      .report-container.a4-preview .print-col-4 { grid-column: span 4 / span 4 !important; }
+      .report-container.a4-preview .print-col-6 { grid-column: span 6 / span 6 !important; }
+      .report-container.a4-preview .print-col-8 { grid-column: span 8 / span 8 !important; }
+      .report-container.a4-preview .print-col-12 { grid-column: span 12 / span 12 !important; }
+      .report-container.a4-preview .print-grid-4 {
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+      }
+      .report-container.a4-preview .print-grid-3 {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+      }
+      .report-container.a4-preview .print-grid-2 {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+      }
+    }
+
+    /* Cores de Severidade CVSS */
+    .sev-critical-bg { background-color: #fef2f2; color: #991b1b; border-color: #fca5a5; }
+    .sev-high-bg     { background-color: #fff7ed; color: #c2410c; border-color: #fdba74; }
+    .sev-medium-bg   { background-color: #fffbeb; color: #b45309; border-color: #fcd34d; }
+    .sev-low-bg      { background-color: #f0f9ff; color: #0369a1; border-color: #bae6fd; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased font-sans min-h-screen">
+
+  <!-- ==================================================== -->
+  <!-- BARRA DE FERRAMENTAS SUPERIOR (NÃO IMPRESSA)         -->
+  <!-- ==================================================== -->
+  <header class="no-print sticky top-0 z-50 bg-slate-900/95 backdrop-blur border-b border-slate-800 text-white px-6 py-2.5 shadow-md">
+    <div class="max-w-[1400px] mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 font-bold">
+          <i data-lucide="award" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <h1 class="text-xs font-bold tracking-tight">GvulStand • Auditoria SLA & ISO 27001</h1>
+          <p class="text-[10px] text-slate-400">Controle 8.8 ISO/IEC 27001 • Ciclo PDCA ISO 9001 • Trilha de Riscos Aceitos</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <!-- Alternar Largura Tela / A4 Preview -->
+        <button onclick="toggleWidthPreview()" id="btn-toggle-width" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center space-x-1.5 transition cursor-pointer border border-slate-700" title="Alterna entre largura ampla de tela e simulação A4">
+          <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+          <span id="btn-toggle-width-text">Largura A4</span>
+        </button>
+
+        <button onclick="window.location.reload()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center space-x-1.5 transition border border-slate-700" title="Recarregar dados">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          <span>Recarregar</span>
+        </button>
+
+        <button onclick="window.print()" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-900/30 flex items-center space-x-1.5 transition cursor-pointer">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+          <span>Salvar em PDF / Imprimir</span>
+        </button>
+
+        <button onclick="window.close()" class="p-1 rounded-lg bg-slate-800 hover:bg-rose-950/60 hover:text-rose-400 text-slate-300 transition border border-slate-700" title="Fechar janela">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================================================== -->
+  <!-- SPINNER DE CARREGAMENTO                              -->
+  <!-- ==================================================== -->
+  <div id="report-loading" class="flex flex-col items-center justify-center min-h-[70vh] p-8">
+    <div class="w-10 h-10 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+    <p class="mt-3 text-sm font-semibold text-slate-700">Consolidando auditoria de SLA e trilha ISO 27001...</p>
+    <p class="text-xs text-slate-400 mt-0.5">Calculando matriz de aging, conformidade aos prazos, ciclo PDCA e justificativas de risco aceito</p>
+  </div>
+
+  <!-- CONTAINER DE ERRO -->
+  <div id="report-error" class="hidden max-w-2xl mx-auto my-12 p-6 bg-white rounded-2xl shadow-xl border border-rose-200">
+    <div class="flex items-center space-x-3 text-rose-600">
+      <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+      <h2 class="text-base font-bold">Não foi possível carregar os dados de auditoria</h2>
+    </div>
+    <p id="report-error-msg" class="text-xs text-slate-600 mt-2"></p>
+    <div class="mt-4 flex space-x-3">
+      <button onclick="window.location.reload()" class="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-semibold">Tentar Novamente</button>
+      <button onclick="window.close()" class="px-3 py-1.5 bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">Fechar</button>
+    </div>
+  </div>
+
+  <!-- ==================================================== -->
+  <!-- DOCUMENTO FORMAL DE AUDITORIA (IMPRESSÃO / PDF)      -->
+  <!-- ==================================================== -->
+  <main id="report-content" class="hidden report-container mx-auto my-6 bg-white shadow-xl rounded-2xl border border-slate-200/80 p-8 space-y-6">
+
+    <!-- 0. CABEÇALHO FORMAL DO RELATÓRIO DE AUDITORIA -->
+    <header class="border-b border-slate-200 pb-5 avoid-break">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div class="flex items-center space-x-3.5">
+          <div class="w-12 h-12 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30 font-bold shrink-0">
+            <i data-lucide="shield-alert" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="text-[10px] font-extrabold uppercase tracking-widest text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
+                ISO/IEC 27001:2022 • Controle 8.8 & ISO 9001
+              </span>
+              <span id="doc-classification" class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                CONFIDENCIAL // USO RESTRITO
+              </span>
+            </div>
+            <h1 id="doc-title" class="text-lg font-extrabold text-slate-900 tracking-tight mt-1">
+              Relatório de Auditoria e Conformidade SLA (ISO 27001)
+            </h1>
+            <p class="text-xs text-slate-500 font-medium">
+              Auditoria Formal de Aderência a Prazos de Tratamento, Métricas de Eficiência e Trilha de Riscos Aceitos
+            </p>
+          </div>
+        </div>
+
+        <!-- Identificação do Sistema & Data -->
+        <div class="text-right text-[11px] text-slate-500 space-y-0.5 shrink-0 hidden sm:block">
+          <div><strong class="text-slate-800">Plataforma:</strong> GvulStand v1.0</div>
+          <div><strong class="text-slate-800">Emissão:</strong> <span id="meta-emission">--</span></div>
+          <div><strong class="text-slate-800">Auditor:</strong> <span id="meta-auditor" class="font-semibold text-indigo-700">--</span></div>
+        </div>
+      </div>
+
+      <!-- Grade de Metadados de Escopo -->
+      <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+        <div>
+          <span class="text-[10px] font-semibold text-slate-400 block uppercase">Escopo Auditado</span>
+          <span id="meta-scope" class="font-bold text-slate-800 truncate block">--</span>
+        </div>
+        <div>
+          <span class="text-[10px] font-semibold text-slate-400 block uppercase">Ciclo de Auditoria</span>
+          <span id="meta-period" class="font-bold text-slate-800 truncate block">--</span>
+        </div>
+        <div>
+          <span class="text-[10px] font-semibold text-slate-400 block uppercase">Equipe Responsável</span>
+          <span id="meta-team" class="font-bold text-slate-800 truncate block">--</span>
+        </div>
+        <div>
+          <span class="text-[10px] font-semibold text-slate-400 block uppercase">Scans Inspecionados</span>
+          <span id="meta-scans" class="font-bold text-slate-800 truncate block" title="">--</span>
+        </div>
+      </div>
+
+      <!-- Alerta de Escopo caso aplicável -->
+      <div id="meta-notes-box" class="hidden mt-3 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800 flex items-center space-x-2">
+        <i data-lucide="info" class="w-4 h-4 text-amber-600 shrink-0"></i>
+        <span id="meta-notes-text"></span>
+      </div>
+    </header>
+
+
+    <!-- ==================================================== -->
+    <!-- 1. AUDITORIA FORMAL DE ADERÊNCIA AOS PRAZOS (SLA)    -->
+    <!-- ==================================================== -->
+    <section class="space-y-4 avoid-break">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+        <div class="flex items-center space-x-2">
+          <div class="w-6 h-6 rounded-md bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
+            1
+          </div>
+          <h2 class="text-sm font-bold text-slate-900 tracking-tight">
+            Auditoria Formal de Aderência aos Prazos de Remediação (SLA)
+          </h2>
+        </div>
+        <span class="text-[11px] text-slate-500 font-medium hidden sm:inline">
+          ISO/IEC 27001:2022 Controle 8.8 (Gestão de vulnerabilidades técnicas)
+        </span>
+      </div>
+
+      <p class="text-xs text-slate-600 leading-relaxed">
+        Aferição quantitativa da exposição temporal do parque tecnológico frente aos limites de tolerância estipulados na
+        Política de Segurança da Informação. Avalia o tempo decorrido desde a detecção inicial (<code class="text-[11px] bg-slate-100 px-1 py-0.5 rounded font-mono text-indigo-700">first_found</code>)
+        até a efetiva remediação ou o momento presente.
+      </p>
+
+      <!-- 4 Cards de Indicadores de SLA -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 print-grid-4">
+        
+        <!-- KPI 1: Conformidade Global SLA -->
+        <div class="p-3.5 rounded-xl border bg-slate-50 border-slate-200 flex flex-col justify-between">
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Taxa Geral de Conformidade SLA</span>
+          <div class="flex items-baseline space-x-1.5 mt-1.5">
+            <span id="kpi-sla-rate" class="text-2xl font-black text-slate-900">--%</span>
+            <span id="kpi-sla-rate-badge" class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">Conforme</span>
+          </div>
+          <span id="kpi-sla-rate-desc" class="text-[10px] text-slate-500 mt-1 block">-- dentro do prazo normativo</span>
+        </div>
+
+        <!-- KPI 2: Passivos Críticos > 90 Dias (ALERTA ISO 27001) -->
+        <div id="card-passives-90d" class="p-3.5 rounded-xl border bg-slate-50 border-slate-200 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Passivos Críticos &gt; 90 Dias</span>
+            <span id="badge-passives-alert" class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 uppercase">Auditado</span>
+          </div>
+          <div class="flex items-baseline space-x-1 mt-1.5">
+            <span id="kpi-crit-passives-count" class="text-2xl font-black text-slate-900">0</span>
+            <span class="text-xs text-slate-400 font-medium">vulnerabilidades</span>
+          </div>
+          <span id="kpi-crit-passives-desc" class="text-[10px] text-slate-500 mt-1 block">Nenhum passivo crítico vencido > 90d</span>
+        </div>
+
+        <!-- KPI 3: Total de Vulnerabilidades Vencidas -->
+        <div class="p-3.5 rounded-xl border bg-slate-50 border-slate-200 flex flex-col justify-between">
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Fora do Prazo (Vencidas)</span>
+          <div class="flex items-baseline space-x-1 mt-1.5">
+            <span id="kpi-breached-count" class="text-2xl font-black text-rose-600">0</span>
+            <span class="text-xs text-slate-400 font-medium">de <span id="kpi-total-actionable">0</span> acionáveis</span>
+          </div>
+          <span id="kpi-breached-pct" class="text-[10px] text-slate-500 mt-1 block">0.0% das falhas violaram o SLA</span>
+        </div>
+
+        <!-- KPI 4: Prazos Normativos em Vigor -->
+        <div class="p-3.5 rounded-xl border bg-slate-50 border-slate-200 flex flex-col justify-between">
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Prazos Formais (SLA Político)</span>
+          <div class="grid grid-cols-2 gap-1 text-[11px] font-semibold mt-1">
+            <div class="flex items-center justify-between bg-rose-50 px-1.5 py-0.5 rounded text-rose-900 border border-rose-100">
+              <span>Crítica:</span>
+              <strong id="limit-crit">7d</strong>
+            </div>
+            <div class="flex items-center justify-between bg-orange-50 px-1.5 py-0.5 rounded text-orange-900 border border-orange-100">
+              <span>Alta:</span>
+              <strong id="limit-high">15d</strong>
+            </div>
+            <div class="flex items-center justify-between bg-amber-50 px-1.5 py-0.5 rounded text-amber-900 border border-amber-100">
+              <span>Média:</span>
+              <strong id="limit-med">30d</strong>
+            </div>
+            <div class="flex items-center justify-between bg-sky-50 px-1.5 py-0.5 rounded text-sky-900 border border-sky-100">
+              <span>Baixa:</span>
+              <strong id="limit-low">60d</strong>
+            </div>
+          </div>
+          <span class="text-[9px] text-slate-400 mt-1 block text-center">Definido por Grupo de Ativos</span>
+        </div>
+
+      </div>
+
+      <!-- MATRIZ DE AGING (ENVELHECIMENTO) -->
+      <div class="card-box rounded-xl border border-slate-200 overflow-hidden bg-white shadow-xs">
+        <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+          <h3 class="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-indigo-600"></i>
+            <span>Matriz de Envelhecimento das Vulnerabilidades (Aging Matrix)</span>
+          </h3>
+          <span class="text-[10px] text-slate-500">Agrupamento em faixas: 0-30 dias, 31-60 dias, 61-90 dias e superiores a 90 dias</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="bg-slate-100/80 border-b border-slate-200 text-slate-600 font-bold text-[11px]">
+                <th class="py-2 px-3">Faixa de Envelhecimento</th>
+                <th class="py-2 px-3 text-center">Total Itens</th>
+                <th class="py-2 px-3 text-center text-emerald-700">No Prazo (SLA OK)</th>
+                <th class="py-2 px-3 text-center text-rose-700">Fora do Prazo (SLA Vencido)</th>
+                <th class="py-2 px-3 text-center">Críticas</th>
+                <th class="py-2 px-3 text-center">Altas</th>
+                <th class="py-2 px-3 text-center">Médias</th>
+                <th class="py-2 px-3 text-center">Baixas</th>
+                <th class="py-2 px-3 text-center">Status Auditoria</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-aging-matrix" class="divide-y divide-slate-200 text-[11px]">
+              <!-- Injetado dinamicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TABELA DE CONFORMIDADE POR SEVERIDADE -->
+      <div class="card-box rounded-xl border border-slate-200 overflow-hidden bg-white shadow-xs">
+        <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+          <h3 class="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+            <i data-lucide="check-square" class="w-3.5 h-3.5 text-indigo-600"></i>
+            <span>Aderência aos Prazos de Resolução por Nível de Severidade CVSS</span>
+          </h3>
+          <span class="text-[10px] text-slate-500">Taxas e idades médias observadas</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="bg-slate-100/80 border-b border-slate-200 text-slate-600 font-bold text-[11px]">
+                <th class="py-2 px-3">Severidade</th>
+                <th class="py-2 px-3 text-center">Limite Formal</th>
+                <th class="py-2 px-3 text-center">Total Auditado</th>
+                <th class="py-2 px-3 text-center text-emerald-700">Dentro do Prazo</th>
+                <th class="py-2 px-3 text-center text-rose-700">Fora do Prazo</th>
+                <th class="py-2 px-3 text-center">Taxa de Conformidade</th>
+                <th class="py-2 px-3 text-center">Idade Média</th>
+                <th class="py-2 px-3 text-center">Idade Máxima</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-severity-compliance" class="divide-y divide-slate-200 text-[11px]">
+              <!-- Injetado dinamicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ==================================================== -->
+    <!-- 2. MÉTRICAS DE EFICIÊNCIA ISO 9001 (CICLO PDCA)      -->
+    <!-- ==================================================== -->
+    <section class="space-y-4 avoid-break page-break-before">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+        <div class="flex items-center space-x-2">
+          <div class="w-6 h-6 rounded-md bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
+            2
+          </div>
+          <h2 class="text-sm font-bold text-slate-900 tracking-tight">
+            Métricas de Eficiência e Melhoria Contínua ISO 9001 (Ciclo PDCA)
+          </h2>
+        </div>
+        <span class="text-[11px] text-slate-500 font-medium hidden sm:inline">
+          Evidência Objetiva de Eficácia no Tratamento de Riscos
+        </span>
+      </div>
+
+      <p class="text-xs text-slate-600 leading-relaxed">
+        Demonstração de evidências objetivas de melhoria contínua de processos conforme preceitos da norma ISO 9001,
+        confrontando os dados operacionais de remediação, baseline anterior e varredura de reteste atual.
+      </p>
+
+      <!-- 3 CARDS DE DESTAQUE COM FÓRMULAS EXPLÍCITAS -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 print-grid-3">
+
+        <!-- MÉTRICA 1: Taxa de Eficácia de Remediação -->
+        <div class="p-4 rounded-xl border bg-slate-50 border-slate-200 flex flex-col justify-between shadow-xs">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Taxa de Eficácia de Remediação</span>
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-100 text-indigo-800">ISO 9001</span>
+            </div>
+            <div class="my-2">
+              <span id="pdca-rem-eff-val" class="text-2xl font-black text-slate-900">--</span>
+            </div>
+            <div class="p-2 rounded bg-white border border-slate-200 text-[10px] text-slate-600 font-mono space-y-0.5">
+              <div class="text-slate-400 font-sans font-semibold text-[9px] uppercase">Fórmula de Cálculo:</div>
+              <div>(Total Remediated / Total Acionáveis) * 100</div>
+            </div>
+          </div>
+          <p id="pdca-rem-eff-desc" class="text-[10px] text-slate-500 mt-2">
+            Apurando dados de remediações concluídas no ciclo atual.
+          </p>
+        </div>
+
+        <!-- MÉTRICA 2: Taxa de Resolução (Baseline vs Reteste) -->
+        <div class="p-4 rounded-xl border bg-slate-50 border-slate-200 flex flex-col justify-between shadow-xs">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Taxa de Resolução</span>
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-800">Baseline vs Reteste</span>
+            </div>
+            <div class="my-2">
+              <span id="pdca-resolution-val" class="text-2xl font-black text-slate-900">--</span>
+            </div>
+            <div class="p-2 rounded bg-white border border-slate-200 text-[10px] text-slate-600 font-mono space-y-0.5">
+              <div class="text-slate-400 font-sans font-semibold text-[9px] uppercase">Fórmula de Cálculo:</div>
+              <div>(Remediadas no Reteste / Total no Baseline) * 100</div>
+            </div>
+          </div>
+          <p id="pdca-resolution-desc" class="text-[10px] text-slate-500 mt-2">
+            Comparativo de assinaturas entre o ciclo anterior e o atual.
+          </p>
+        </div>
+
+        <!-- MÉTRICA 3: Redução Líquida de Risco -->
+        <div class="p-4 rounded-xl border bg-slate-50 border-slate-200 flex flex-col justify-between shadow-xs">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Redução Líquida de Risco</span>
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800">Mitigação Efetiva</span>
+            </div>
+            <div class="my-2">
+              <span id="pdca-risk-red-val" class="text-2xl font-black text-emerald-700">--</span>
+            </div>
+            <div class="p-2 rounded bg-white border border-slate-200 text-[10px] text-slate-600 font-mono space-y-0.5">
+              <div class="text-slate-400 font-sans font-semibold text-[9px] uppercase">Fórmula de Cálculo:</div>
+              <div>((Risco Antes - Risco Depois) / Risco Antes) * 100</div>
+            </div>
+          </div>
+          <p id="pdca-risk-red-desc" class="text-[10px] text-slate-500 mt-2">
+            Variação ponderada do Risk Score global do parque tecnológico.
+          </p>
+        </div>
+
+      </div>
+
+      <!-- PAINEL DESCRITIVO DO CICLO PDCA -->
+      <div class="card-box rounded-xl border border-slate-200 p-4 bg-slate-50/50 space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+          <h3 class="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+            <i data-lucide="git-commit" class="w-3.5 h-3.5 text-indigo-600"></i>
+            <span>Mapeamento do Ciclo PDCA na Gestão de Vulnerabilidades da Organização</span>
+          </h3>
+          <span id="badge-pdca-status" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800">
+            Ciclo Ativo
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-[11px] print-grid-4">
+          <!-- Plan -->
+          <div class="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1">
+            <div class="font-extrabold text-indigo-700 flex items-center space-x-1">
+              <span>P • Plan (Planejar)</span>
+            </div>
+            <p class="text-slate-600 text-[10px] leading-relaxed">
+              Definição formal de SLAs por severidade (7d/15d/30d/60d), alocação de grupos de ativos e delimitação de escopo de auditoria.
+            </p>
+          </div>
+
+          <!-- Do -->
+          <div class="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1">
+            <div class="font-extrabold text-blue-700 flex items-center space-x-1">
+              <span>D • Do (Executar)</span>
+            </div>
+            <p class="text-slate-600 text-[10px] leading-relaxed">
+              Realização periódica de varreduras Nessus automatizadas, aplicação de patches de segurança e tratamento operacional pelas equipes.
+            </p>
+          </div>
+
+          <!-- Check -->
+          <div class="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1">
+            <div class="font-extrabold text-amber-700 flex items-center space-x-1">
+              <span>C • Check (Verificar)</span>
+            </div>
+            <p class="text-slate-600 text-[10px] leading-relaxed">
+              Auditoria formal de cumprimento de prazos (Aging Matrix), cálculo da taxa de resolução e identificação de desvios e riscos aceitos.
+            </p>
+          </div>
+
+          <!-- Act -->
+          <div class="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1">
+            <div class="font-extrabold text-emerald-700 flex items-center space-x-1">
+              <span>A • Act (Agir)</span>
+            </div>
+            <p class="text-slate-600 text-[10px] leading-relaxed">
+              Abertura de planos de ação para passivos críticos &gt; 90 dias, reavaliação periódica de riscos aceitos e melhoria dos controles.
+            </p>
+          </div>
+        </div>
+
+        <div class="p-2.5 rounded-lg bg-white border border-slate-200 text-xs text-slate-700 flex items-start space-x-2">
+          <i data-lucide="info" class="w-4 h-4 text-indigo-600 shrink-0 mt-0.5"></i>
+          <span id="pdca-statement-text" class="text-[11px] leading-relaxed">--</span>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ==================================================== -->
+    <!-- 3. TRILHA DE AUDITORIA E RISCOS ACEITOS              -->
+    <!-- ("QUEM, QUANDO E POR QUÊ")                           -->
+    <!-- ==================================================== -->
+    <section class="space-y-4 avoid-break page-break-before">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+        <div class="flex items-center space-x-2">
+          <div class="w-6 h-6 rounded-md bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
+            3
+          </div>
+          <h2 class="text-sm font-bold text-slate-900 tracking-tight">
+            Trilha de Auditoria e Riscos Aceitos ("Quem, Quando e Por Quê")
+          </h2>
+        </div>
+        <span class="text-[11px] text-slate-500 font-medium hidden sm:inline">
+          Rastreabilidade Completa de Aprovações Excepcionais
+        </span>
+      </div>
+
+      <p class="text-xs text-slate-600 leading-relaxed">
+        Isolamento estrito dos registros classificados como <code class="text-[11px] bg-slate-100 px-1 py-0.5 rounded font-mono text-purple-700 font-bold">treatment_status = Accepted_Risk</code>.
+        Para garantir accountability e conformidade em auditorias externas da ISO/IEC 27001, esta seção consolida o autor da aprovação
+        (<code class="text-[11px] bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">treated_by_username</code>), o carimbo de data/hora em UTC
+        (<code class="text-[11px] bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">treated_at</code>) e a justificativa técnica/negócio integral formalizada
+        (<code class="text-[11px] bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">treatment_notes</code>).
+      </p>
+
+      <!-- Painel Resumo de Riscos Aceitos -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-xl bg-purple-50/50 border border-purple-200 text-xs print-grid-4">
+        <div>
+          <span class="text-[10px] font-bold text-purple-800 uppercase block">Total de Riscos Aceitos</span>
+          <span id="stat-accepted-total" class="text-lg font-black text-purple-900">0</span>
+        </div>
+        <div>
+          <span class="text-[10px] font-bold text-purple-800 uppercase block">Críticas Aceitas</span>
+          <span id="stat-accepted-crit" class="text-lg font-black text-rose-700">0</span>
+        </div>
+        <div>
+          <span class="text-[10px] font-bold text-purple-800 uppercase block">Altas Aceitas</span>
+          <span id="stat-accepted-high" class="text-lg font-black text-orange-700">0</span>
+        </div>
+        <div>
+          <span class="text-[10px] font-bold text-purple-800 uppercase block">Proporção no Inventário</span>
+          <span id="stat-accepted-ratio" class="text-lg font-black text-slate-800">0.0%</span>
+        </div>
+      </div>
+
+      <!-- TABELA ESTRUTURADA DE RISCOS ACEITOS -->
+      <div id="box-accepted-risks-table" class="card-box rounded-xl border border-slate-200 overflow-hidden bg-white shadow-xs">
+        <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+          <h3 class="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+            <i data-lucide="file-check-2" class="w-3.5 h-3.5 text-purple-600"></i>
+            <span>Registro Formal de Rastreabilidade de Riscos Aceitos</span>
+          </h3>
+          <span class="text-[10px] text-slate-500">Listagem exaustiva de aprovações</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="bg-slate-100/80 border-b border-slate-200 text-slate-600 font-bold text-[11px]">
+                <th class="py-2.5 px-3 w-20">Plugin ID</th>
+                <th class="py-2.5 px-3">Nome da Vulnerabilidade</th>
+                <th class="py-2.5 px-3 text-center w-24">Severidade</th>
+                <th class="py-2.5 px-3 w-28">Ativo / IP</th>
+                <th class="py-2.5 px-3 w-32">Aprovador (Quem)</th>
+                <th class="py-2.5 px-3 w-36">Data (Quando)</th>
+                <th class="py-2.5 px-3 min-w-[280px]">Justificativa Formal (Por Quê)</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-accepted-risks" class="divide-y divide-slate-200 text-[11px]">
+              <!-- Injetado dinamicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Caixa de Conformidade Plena (quando não houver riscos aceitos) -->
+      <div id="box-accepted-risks-empty" class="hidden p-6 rounded-xl bg-emerald-50 border border-emerald-200 text-center space-y-2">
+        <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
+          <i data-lucide="shield-check" class="w-5 h-5"></i>
+        </div>
+        <h4 class="text-xs font-bold text-emerald-900 uppercase tracking-wide">
+          Conformidade Plena Verificada (Sem Riscos Residuais Aceitos)
+        </h4>
+        <p class="text-xs text-emerald-800 max-w-xl mx-auto leading-relaxed">
+          Não foram identificados registros com status "Risco Aceito" (<code class="font-mono text-[10px] bg-white px-1 py-0.5 rounded border border-emerald-200">Accepted_Risk</code>)
+          no escopo auditado. 100% das vulnerabilidades técnicas identificadas seguem o fluxo operacional regular de mitigação e aplicação de patches.
+        </p>
+      </div>
+    </section>
+
+
+    <!-- ==================================================== -->
+    <!-- 4. PARECER FORMAL DO AUDITOR E ACCOUNTABILITY        -->
+    <!-- ==================================================== -->
+    <section class="space-y-4 avoid-break page-break-before">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+        <div class="flex items-center space-x-2">
+          <div class="w-6 h-6 rounded-md bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
+            4
+          </div>
+          <h2 class="text-sm font-bold text-slate-900 tracking-tight">
+            Parecer Formal de Auditoria & Recomendações Técnicas
+          </h2>
+        </div>
+        <span class="text-[11px] text-slate-500 font-medium hidden sm:inline">
+          Accountability e Responsabilidade Profissional
+        </span>
+      </div>
+
+      <!-- Status de Conformidade das Normas -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 print-grid-2">
+        <div class="p-3.5 rounded-xl border bg-slate-50 border-slate-200 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold text-slate-500 uppercase">ISO/IEC 27001:2022 • Controle 8.8</span>
+            <span id="badge-status-27001" class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
+              Conforme
+            </span>
+          </div>
+          <p class="text-xs text-slate-700 font-semibold">
+            Gestão de Vulnerabilidades Técnicas
+          </p>
+          <p id="desc-status-27001" class="text-[11px] text-slate-600 leading-relaxed">
+            --
+          </p>
+        </div>
+
+        <div class="p-3.5 rounded-xl border bg-slate-50 border-slate-200 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold text-slate-500 uppercase">ISO 9001:2015 • Ciclo PDCA</span>
+            <span id="badge-status-9001" class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-indigo-100 text-indigo-800">
+              Eficaz
+            </span>
+          </div>
+          <p class="text-xs text-slate-700 font-semibold">
+            Melhoria Contínua dos Processos de Remediação
+          </p>
+          <p id="desc-status-9001" class="text-[11px] text-slate-600 leading-relaxed">
+            --
+          </p>
+        </div>
+      </div>
+
+      <!-- Recomendações do Auditor Sênior -->
+      <div class="card-box rounded-xl border border-slate-200 p-4 bg-white space-y-2.5">
+        <h3 class="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+          <i data-lucide="clipboard-list" class="w-3.5 h-3.5 text-indigo-600"></i>
+          <span>Recomendações Formais do Auditor para Liderança e Sustentação</span>
+        </h3>
+        <ul id="list-auditor-recommendations" class="space-y-2 text-xs text-slate-700">
+          <!-- Injetado dinamicamente -->
+        </ul>
+      </div>
+
+      <!-- BLOCO DE ASSINATURA FORMAL E ACCOUNTABILITY -->
+      <div class="pt-4 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs text-slate-600">
+        <div class="space-y-1">
+          <div class="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Declaração de Integridade:</div>
+          <p class="text-[10px] text-slate-500 leading-relaxed">
+            Este relatório foi gerado de forma automatizada e auditável pela plataforma GvulStand, integrando diretamente
+            os registros de varredura Nessus e o histórico de tratativas registradas no banco de dados. Os cálculos
+            de SLA, aging e PDCA refletem com exatidão as políticas cadastradas.
+          </p>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+          <div>
+            <span class="text-[10px] font-bold text-slate-400 block uppercase">Auditor Responsável / Emissor</span>
+            <span id="sign-auditor-name" class="text-sm font-bold text-slate-900 block mt-0.5">--</span>
+            <span id="sign-auditor-role" class="text-[11px] text-indigo-700 font-semibold block">
+              Auditor Sênior de Segurança da Informação & Qualidade
+            </span>
+          </div>
+          <div class="mt-3 pt-2 border-t border-slate-200 text-[10px] text-slate-400 flex items-center justify-between">
+            <span>Carimbo de Validação GvulStand</span>
+            <span id="sign-timestamp" class="font-mono font-bold text-slate-700">--</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RODAPÉ FORMAL -->
+    <footer class="border-t border-slate-200 pt-3 text-[10px] text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div class="flex items-center space-x-2">
+        <strong class="text-slate-600">GvulStand</strong>
+        <span>• Governança e Gestão de Vulnerabilidades</span>
+      </div>
+      <div>Relatório de Auditoria e Conformidade SLA (ISO 27001) • Gerado para fins de prestação de contas</div>
+    </footer>
+
+  </main>
+
+
+  <!-- ==================================================== -->
+  <!-- SCRIPT DE CARREGAMENTO E RENDERIZAÇÃO                -->
+  <!-- ==================================================== -->
+  <script>
+    let isA4Preview = false;
+
+    function toggleWidthPreview() {
+      const container = document.getElementById('report-content');
+      const btnText = document.getElementById('btn-toggle-width-text');
+      if (!container) return;
+
+      isA4Preview = !isA4Preview;
+      if (isA4Preview) {
+        container.classList.add('a4-preview');
+        if (btnText) btnText.textContent = 'Largura Ampla';
+      } else {
+        container.classList.remove('a4-preview');
+        if (btnText) btnText.textContent = 'Largura A4';
+      }
+    }
+
+    async function loadSlaAuditData() {
+      const urlParams = new URLSearchParams(window.location.search);
+      let token = urlParams.get('token') || localStorage.getItem('gvul_token');
+
+      if (urlParams.get('token')) {
+        localStorage.setItem('gvul_token', urlParams.get('token'));
+      }
+
+      const params = {
+        asset_group_id: urlParams.get('asset_group_id') || '',
+        scan_id: urlParams.get('scan_id') || '',
+        period: urlParams.get('period') || '',
+        team: urlParams.get('team') || '',
+        emission_date: urlParams.get('emission_date') || '',
+        title: urlParams.get('title') || '',
+        classification: urlParams.get('classification') || ''
+      };
+
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const qs = new URLSearchParams();
+        for (const [k, v] of Object.entries(params)) {
+          if (v && v.trim()) qs.append(k, v.trim());
+        }
+
+        const res = await fetch(`/api/reports/sla-audit-data?${qs.toString()}`, { headers });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || `Erro na geração do relatório (Status HTTP ${res.status})`);
+        }
+
+        const data = await res.json();
+        renderSlaReport(data, params);
+
+        document.getElementById('report-loading').classList.add('hidden');
+        document.getElementById('report-content').classList.remove('hidden');
+        lucide.createIcons();
+      } catch (err) {
+        console.error('Erro ao gerar relatório de auditoria SLA:', err);
+        document.getElementById('report-loading').classList.add('hidden');
+        document.getElementById('report-error').classList.remove('hidden');
+        document.getElementById('report-error-msg').textContent = err.message || 'Falha ao processar dados de auditoria.';
+        lucide.createIcons();
+      }
+    }
+
+    function renderSlaReport(data, queryParams) {
+      const meta = data.metadata || {};
+      const sla = data.sla_adherence || {};
+      const pdca = data.iso9001_pdca || {};
+      const accepted = data.accepted_risks_trail || {};
+      const auditor = data.auditor_statement || {};
+
+      // 0. Metadados do Cabeçalho
+      const finalTitle = queryParams.title || meta.title || 'Relatório de Auditoria e Conformidade SLA (ISO 27001)';
+      const finalPeriod = queryParams.period || meta.period || 'Ciclo de Auditoria';
+      const finalEmission = queryParams.emission_date || meta.emission_date || new Date().toLocaleDateString('pt-BR');
+      const finalScope = meta.scope_name || 'Todos os Grupos de Ativos (Visão Consolidada)';
+      const finalTeam = queryParams.team || meta.team || 'Auditoria Interna de Segurança da Informação & Qualidade';
+      const finalClassif = queryParams.classification || meta.classification || 'CONFIDENCIAL // USO RESTRITO';
+      const finalAuditor = meta.generated_by || 'Auditor Sênior';
+
+      document.title = `${finalTitle} - GvulStand`;
+      document.getElementById('doc-title').textContent = finalTitle;
+      document.getElementById('doc-classification').textContent = finalClassif;
+      document.getElementById('meta-scope').textContent = finalScope;
+      document.getElementById('meta-period').textContent = finalPeriod;
+      document.getElementById('meta-emission').textContent = finalEmission;
+      document.getElementById('meta-team').textContent = finalTeam;
+      document.getElementById('meta-auditor').textContent = finalAuditor;
+
+      const scansList = meta.scan_names && meta.scan_names.length > 0 ? meta.scan_names.join(', ') : 'Nenhum scan associado';
+      const scansEl = document.getElementById('meta-scans');
+      scansEl.textContent = scansList;
+      scansEl.title = scansList;
+
+      if (meta.notes) {
+        document.getElementById('meta-notes-box').classList.remove('hidden');
+        document.getElementById('meta-notes-text').textContent = meta.notes;
+      }
+
+      // 1. Seção 1: Auditoria Formal de SLA & Matriz de Aging
+      const compRate = sla.overall_compliance_rate_percent !== undefined ? sla.overall_compliance_rate_percent : 100.0;
+      document.getElementById('kpi-sla-rate').textContent = `${compRate.toFixed(1)}%`;
+      
+      const badgeSlaEl = document.getElementById('kpi-sla-rate-badge');
+      if (compRate >= 90.0) {
+        badgeSlaEl.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800';
+        badgeSlaEl.textContent = 'Conforme';
+      } else if (compRate >= 75.0) {
+        badgeSlaEl.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800';
+        badgeSlaEl.textContent = 'Atenção';
+      } else {
+        badgeSlaEl.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-800';
+        badgeSlaEl.textContent = 'Não Conforme';
+      }
+      document.getElementById('kpi-sla-rate-desc').textContent = `${sla.total_within_sla || 0} de ${sla.total_actionable || 0} no prazo`;
+
+      // Passivos Críticos > 90 dias
+      const crit90 = sla.critical_passives_over_90_days || 0;
+      const cardPassives = document.getElementById('card-passives-90d');
+      const badgePassives = document.getElementById('badge-passives-alert');
+      const passivesCountEl = document.getElementById('kpi-crit-passives-count');
+      const passivesDescEl = document.getElementById('kpi-crit-passives-desc');
+
+      passivesCountEl.textContent = crit90.toLocaleString();
+      if (crit90 > 0) {
+        cardPassives.className = 'p-3.5 rounded-xl border bg-rose-50 border-rose-300 flex flex-col justify-between shadow-sm';
+        badgePassives.className = 'text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-rose-600 text-white uppercase animate-pulse';
+        badgePassives.textContent = 'Não Conforme';
+        passivesCountEl.className = 'text-2xl font-black text-rose-700';
+        passivesDescEl.textContent = `${crit90} falha(s) crítica(s) violando o limite de 90 dias!`;
+        passivesDescEl.className = 'text-[10px] font-bold text-rose-700 mt-1 block';
+      } else {
+        cardPassives.className = 'p-3.5 rounded-xl border bg-emerald-50/60 border-emerald-200 flex flex-col justify-between';
+        badgePassives.className = 'text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase';
+        badgePassives.textContent = 'Conforme';
+        passivesCountEl.className = 'text-2xl font-black text-emerald-700';
+        passivesDescEl.textContent = 'Zero passivos críticos com idade > 90 dias';
+        passivesDescEl.className = 'text-[10px] text-emerald-700 mt-1 block';
+      }
+
+      // Total Fora do Prazo (Vencidas)
+      const breachedCount = sla.total_breached_sla || 0;
+      document.getElementById('kpi-breached-count').textContent = breachedCount.toLocaleString();
+      document.getElementById('kpi-total-actionable').textContent = (sla.total_actionable || 0).toLocaleString();
+      const breachedPct = sla.total_actionable > 0 ? ((breachedCount / sla.total_actionable) * 100.0).toFixed(1) : '0.0';
+      document.getElementById('kpi-breached-pct').textContent = `${breachedPct}% das falhas violaram o SLA`;
+
+      // Limites Formais por Severidade (se houver grupos com limites customizados)
+      if (sla.severity_compliance && sla.severity_compliance.length > 0) {
+        sla.severity_compliance.forEach(sc => {
+          if (sc.severity === 'Critical') document.getElementById('limit-crit').textContent = `${sc.sla_limit_days}d`;
+          if (sc.severity === 'High') document.getElementById('limit-high').textContent = `${sc.sla_limit_days}d`;
+          if (sc.severity === 'Medium') document.getElementById('limit-med').textContent = `${sc.sla_limit_days}d`;
+          if (sc.severity === 'Low') document.getElementById('limit-low').textContent = `${sc.sla_limit_days}d`;
+        });
+      }
+
+      // Renderizar Matriz de Aging
+      const tbodyAging = document.getElementById('tbody-aging-matrix');
+      tbodyAging.innerHTML = '';
+      if (sla.aging_matrix && sla.aging_matrix.length > 0) {
+        sla.aging_matrix.forEach(row => {
+          const tr = document.createElement('tr');
+          const isCriticalRange = row.range_label.includes('> 90 dias');
+          if (isCriticalRange && row.critical_breached_count > 0) {
+            tr.className = 'bg-rose-50/70 font-semibold';
+          } else {
+            tr.className = 'hover:bg-slate-50/80 transition';
+          }
+
+          let statusBadge = '<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">Conforme</span>';
+          if (row.breached_sla_count > 0) {
+            if (isCriticalRange && row.critical_breached_count > 0) {
+              statusBadge = '<span class="px-2 py-0.5 rounded bg-rose-600 text-white font-bold text-[10px] uppercase">Não Conforme</span>';
+            } else {
+              statusBadge = '<span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[10px]">Atenção</span>';
+            }
+          }
+
+          tr.innerHTML = `
+            <td class="py-2 px-3 font-bold text-slate-800 flex items-center space-x-1.5">
+              <span>${row.range_label}</span>
+            </td>
+            <td class="py-2 px-3 text-center font-bold text-slate-900">${row.total_count}</td>
+            <td class="py-2 px-3 text-center font-bold text-emerald-700">${row.within_sla_count}</td>
+            <td class="py-2 px-3 text-center font-bold ${row.breached_sla_count > 0 ? 'text-rose-600' : 'text-slate-400'}">${row.breached_sla_count}</td>
+            <td class="py-2 px-3 text-center ${row.critical_count > 0 ? 'font-bold text-rose-700' : 'text-slate-400'}">${row.critical_count}</td>
+            <td class="py-2 px-3 text-center ${row.high_count > 0 ? 'font-semibold text-orange-700' : 'text-slate-400'}">${row.high_count}</td>
+            <td class="py-2 px-3 text-center ${row.medium_count > 0 ? 'text-amber-700' : 'text-slate-400'}">${row.medium_count}</td>
+            <td class="py-2 px-3 text-center text-slate-600">${row.low_count}</td>
+            <td class="py-2 px-3 text-center">${statusBadge}</td>
+          `;
+          tbodyAging.appendChild(tr);
+        });
+      }
+
+      // Renderizar Conformidade por Severidade
+      const tbodySev = document.getElementById('tbody-severity-compliance');
+      tbodySev.innerHTML = '';
+      if (sla.severity_compliance && sla.severity_compliance.length > 0) {
+        sla.severity_compliance.forEach(sc => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50/80 transition';
+
+          let sevBadge = '';
+          if (sc.severity === 'Critical') sevBadge = '<span class="px-2 py-0.5 rounded-full font-bold text-[10px] sev-critical-bg border">Crítica</span>';
+          else if (sc.severity === 'High') sevBadge = '<span class="px-2 py-0.5 rounded-full font-bold text-[10px] sev-high-bg border">Alta</span>';
+          else if (sc.severity === 'Medium') sevBadge = '<span class="px-2 py-0.5 rounded-full font-bold text-[10px] sev-medium-bg border">Média</span>';
+          else sevBadge = '<span class="px-2 py-0.5 rounded-full font-bold text-[10px] sev-low-bg border">Baixa</span>';
+
+          const rate = sc.compliance_rate_percent || 0.0;
+          let barColor = 'bg-emerald-500';
+          if (rate < 75.0) barColor = 'bg-rose-500';
+          else if (rate < 90.0) barColor = 'bg-amber-500';
+
+          tr.innerHTML = `
+            <td class="py-2 px-3">${sevBadge}</td>
+            <td class="py-2 px-3 text-center font-mono font-bold text-slate-700">${sc.sla_limit_days} dias</td>
+            <td class="py-2 px-3 text-center font-bold text-slate-900">${sc.total_count}</td>
+            <td class="py-2 px-3 text-center font-bold text-emerald-700">${sc.within_sla_count}</td>
+            <td class="py-2 px-3 text-center font-bold ${sc.breached_sla_count > 0 ? 'text-rose-600' : 'text-slate-400'}">${sc.breached_sla_count}</td>
+            <td class="py-2 px-3">
+              <div class="flex items-center space-x-2">
+                <div class="w-24 bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div class="${barColor} h-2 rounded-full" style="width: ${rate}%;"></div>
+                </div>
+                <span class="font-bold text-slate-800 text-[10px]">${rate.toFixed(1)}%</span>
+              </div>
+            </td>
+            <td class="py-2 px-3 text-center font-mono text-slate-600">${sc.avg_age_days}d</td>
+            <td class="py-2 px-3 text-center font-mono font-bold ${sc.max_age_days > sc.sla_limit_days ? 'text-rose-600' : 'text-slate-700'}">${sc.max_age_days}d</td>
+          `;
+          tbodySev.appendChild(tr);
+        });
+      }
+
+      // 2. Seção 2: Métricas de Eficiência ISO 9001 (Ciclo PDCA)
+      document.getElementById('pdca-rem-eff-val').textContent = pdca.remediation_efficiency_display || '-';
+      document.getElementById('pdca-rem-eff-desc').textContent = pdca.total_remediated > 0
+        ? `${pdca.total_remediated} de ${pdca.total_actionable} vulnerabilidades foram remediadas e verificadas.`
+        : 'Sem registros de vulnerabilidades com status remediado no ciclo avaliado.';
+
+      document.getElementById('pdca-resolution-val').textContent = pdca.resolution_rate_display || '-';
+      document.getElementById('pdca-resolution-desc').textContent = pdca.has_retest_data
+        ? `${pdca.retest_remediated_count} de ${pdca.baseline_vulns_count} vulnerabilidades do baseline foram eliminadas.`
+        : 'Linha de Base Inicial estabelecida. O cálculo será ativado no próximo reteste.';
+
+      document.getElementById('pdca-risk-red-val').textContent = pdca.net_risk_reduction_display || '-';
+      document.getElementById('pdca-risk-red-desc').textContent = pdca.has_retest_data && pdca.risk_before !== null
+        ? `Risk Score evoluiu de ${pdca.risk_before.toFixed(1)} (baseline) para ${pdca.risk_after.toFixed(1)} (reteste).`
+        : 'Linha de Base Inicial. Variação calculada a partir do segundo escaneamento.';
+
+      document.getElementById('pdca-statement-text').textContent = pdca.pdca_status_statement || '--';
+
+      // 3. Seção 3: Trilha de Auditoria e Riscos Aceitos ("Quem, Quando e Por Quê")
+      const totAccepted = accepted.total_accepted_risks || 0;
+      document.getElementById('stat-accepted-total').textContent = totAccepted.toLocaleString();
+      document.getElementById('stat-accepted-crit').textContent = (accepted.critical_accepted || 0).toLocaleString();
+      document.getElementById('stat-accepted-high').textContent = (accepted.high_accepted || 0).toLocaleString();
+      document.getElementById('stat-accepted-ratio').textContent = `${(accepted.accepted_risk_ratio_percent || 0.0).toFixed(1)}%`;
+
+      const boxTable = document.getElementById('box-accepted-risks-table');
+      const boxEmpty = document.getElementById('box-accepted-risks-empty');
+      const tbodyAccepted = document.getElementById('tbody-accepted-risks');
+      tbodyAccepted.innerHTML = '';
+
+      if (totAccepted > 0 && accepted.items && accepted.items.length > 0) {
+        boxTable.classList.remove('hidden');
+        boxEmpty.classList.add('hidden');
+
+        accepted.items.forEach(item => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50 transition align-top';
+
+          let sevBadge = '';
+          if (item.severity === 'Critical') sevBadge = '<span class="px-2 py-0.5 rounded-full font-bold text-[10px] sev-critical-bg border">Crítica</span>';
+          else if (item.severity === 'High') sevBadge = '<span class="px-2 py-0.5 rounded-full font-bold text-[10px] sev-high-bg border">Alta</span>';
+          else if (item.severity === 'Medium') sevBadge = '<span class="px-2 py-0.5 rounded-full font-bold text-[10px] sev-medium-bg border">Média</span>';
+          else sevBadge = '<span class="px-2 py-0.5 rounded-full font-bold text-[10px] sev-low-bg border">Baixa</span>';
+
+          const cveInfo = item.cve ? `<div class="text-[10px] font-mono text-indigo-700 mt-0.5">${item.cve}</div>` : '';
+          const cvssInfo = item.cvss_v3 ? `<span class="inline-block text-[9px] font-bold px-1 rounded bg-slate-100 text-slate-700 ml-1">CVSS ${item.cvss_v3}</span>` : '';
+
+          tr.innerHTML = `
+            <td class="py-2.5 px-3 font-mono font-bold text-slate-700">${item.plugin_id}</td>
+            <td class="py-2.5 px-3">
+              <div class="font-bold text-slate-900">${item.plugin_name} ${cvssInfo}</div>
+              ${cveInfo}
+              <div class="text-[10px] text-slate-400">Grupo: ${item.asset_group_name}</div>
+            </td>
+            <td class="py-2.5 px-3 text-center">${sevBadge}</td>
+            <td class="py-2.5 px-3 font-mono text-slate-800">
+              <div class="font-bold">${item.host_ip}</div>
+              ${item.hostname ? `<div class="text-[10px] text-slate-500 font-sans truncate" title="${item.hostname}">${item.hostname}</div>` : ''}
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 font-bold text-[10px] border border-purple-200">
+                <i data-lucide="user-check" class="w-3 h-3 text-purple-700"></i>
+                <span>${item.treated_by_username}</span>
+              </span>
+            </td>
+            <td class="py-2.5 px-3 font-mono text-[10px] text-slate-600">
+              ${item.treated_at_formatted}
+            </td>
+            <td class="py-2.5 px-3">
+              <div class="p-2 rounded bg-purple-50/60 border border-purple-200 text-slate-800 text-[11px] leading-relaxed whitespace-pre-wrap">
+                ${item.treatment_notes}
+              </div>
+            </td>
+          `;
+          tbodyAccepted.appendChild(tr);
+        });
+      } else {
+        boxTable.classList.add('hidden');
+        boxEmpty.classList.remove('hidden');
+      }
+
+      // 4. Seção 4: Parecer Formal do Auditor
+      document.getElementById('badge-status-27001').textContent = auditor.iso27001_control_8_8_status || 'Conforme';
+      document.getElementById('desc-status-27001').textContent = auditor.summary_findings || '--';
+
+      document.getElementById('badge-status-9001').textContent = auditor.iso9001_pdca_status || 'Ciclo Ativo';
+      document.getElementById('desc-status-9001').textContent = pdca.pdca_status_statement || '--';
+
+      const listRec = document.getElementById('list-auditor-recommendations');
+      listRec.innerHTML = '';
+      if (auditor.auditor_recommendations && auditor.auditor_recommendations.length > 0) {
+        auditor.auditor_recommendations.forEach(rec => {
+          const li = document.createElement('li');
+          li.className = 'flex items-start space-x-2';
+          li.innerHTML = `
+            <i data-lucide="arrow-right-circle" class="w-4 h-4 text-indigo-600 shrink-0 mt-0.5"></i>
+            <span class="leading-relaxed">${rec}</span>
+          `;
+          listRec.appendChild(li);
+        });
+      }
+
+      document.getElementById('sign-auditor-name').textContent = auditor.signed_by || finalAuditor;
+      document.getElementById('sign-auditor-role').textContent = auditor.signed_role || 'Auditor Sênior de Segurança da Informação & Qualidade';
+      document.getElementById('sign-timestamp').textContent = `${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')} UTC`;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadSlaAuditData();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1005 @@
+/* ==========================================================================
+   GvulStand - Design System & Styling (Modern, Clean & Corporate Minimalist)
+   Paleta: Verde Petróleo (#0F766E), Azul Profundo (#0284C7 / #1E40AF),
+           Neutros F8F9FA / 0F172A / 0B0F19, Cores Funcionais CVSS 3.1
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+  /* Light Mode Variables (Clean Minimalist Corporate) */
+  --bg-main: #F8F9FA;
+  --bg-surface: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F8FAFC;
+  --border-color: #E2E8F0;
+  --border-subtle: #F1F5F9;
+  
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+  
+  /* Brand Primary: Verde Petróleo (Deep Petroleum Teal) */
+  --brand-primary: #0F766E;
+  --brand-primary-hover: #0D655E;
+  --brand-primary-light: #14B8A6;
+  --brand-primary-surface: #F0FDFA;
+  --brand-primary-border: #CCFBF1;
+  
+  /* Brand Secondary: Azul Profundo (Deep Ocean / Corporate Blue) */
+  --brand-secondary: #0284C7;
+  --brand-secondary-hover: #0369A1;
+  --brand-secondary-surface: #E0F2FE;
+  --brand-corporate: #1E40AF;
+  
+  /* Cores Funcionais de Severidade (Norma CVSS 3.1) */
+  --sev-critical: #DC2626;
+  --sev-critical-bg: #FEE2E2;
+  --sev-critical-border: #FCA5A5;
+  --sev-critical-text: #991B1B;
+
+  --sev-high: #EA580C;
+  --sev-high-bg: #FFEDD5;
+  --sev-high-border: #FDBA74;
+  --sev-high-text: #9A3412;
+
+  --sev-medium: #D97706;
+  --sev-medium-bg: #FEF3C7;
+  --sev-medium-border: #FCD34D;
+  --sev-medium-text: #92400E;
+
+  --sev-low: #0284C7;
+  --sev-low-bg: #E0F2FE;
+  --sev-low-border: #BAE6FD;
+  --sev-low-text: #0369A1;
+
+  --sev-info: #10B981;
+  --sev-info-bg: #D1FAE5;
+  --sev-info-border: #A7F3D0;
+  --sev-info-text: #065F46;
+
+  --exploit-purple: #7C3AED;
+  --exploit-bg: #F3E8FF;
+  --exploit-border: #DDD6FE;
+  --exploit-text: #5B21B6;
+
+  /* Shadows & Elevation */
+  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+  --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 8px 24px -12px rgba(15, 23, 42, 0.08);
+  --shadow-card-hover: 0 4px 6px -1px rgba(15, 118, 110, 0.06), 0 14px 28px -10px rgba(15, 23, 42, 0.12);
+  --shadow-modal: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
+
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+
+html.dark {
+  color-scheme: dark;
+  /* Dark Mode Variables (Modern Dark Hybrid) */
+  --bg-main: #0B0F19;
+  --bg-surface: #101726;
+  --bg-card: #131B2E;
+  --bg-card-hover: #17233B;
+  --border-color: #1E293B;
+  --border-subtle: #1E293B;
+
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+
+  /* Brand Primary: Verde Petróleo Brilhante no Dark Mode */
+  --brand-primary: #14B8A6;
+  --brand-primary-hover: #2DD4BF;
+  --brand-primary-light: #2DD4BF;
+  --brand-primary-surface: rgba(20, 184, 166, 0.12);
+  --brand-primary-border: rgba(45, 212, 191, 0.25);
+
+  /* Brand Secondary: Azul Oceano / Ciano */
+  --brand-secondary: #38BDF8;
+  --brand-secondary-hover: #7DD3FC;
+  --brand-secondary-surface: rgba(56, 189, 248, 0.12);
+  --brand-corporate: #60A5FA;
+
+  /* Cores Funcionais de Severidade - Dark Mode */
+  --sev-critical: #EF4444;
+  --sev-critical-bg: rgba(220, 38, 38, 0.18);
+  --sev-critical-border: rgba(239, 68, 68, 0.4);
+  --sev-critical-text: #FCA5A5;
+
+  --sev-high: #F97316;
+  --sev-high-bg: rgba(234, 88, 12, 0.18);
+  --sev-high-border: rgba(249, 115, 22, 0.4);
+  --sev-high-text: #FDBA74;
+
+  --sev-medium: #FBBF24;
+  --sev-medium-bg: rgba(217, 119, 6, 0.18);
+  --sev-medium-border: rgba(251, 191, 36, 0.4);
+  --sev-medium-text: #FDE68A;
+
+  --sev-low: #38BDF8;
+  --sev-low-bg: rgba(2, 132, 199, 0.18);
+  --sev-low-border: rgba(56, 189, 248, 0.4);
+  --sev-low-text: #BAE6FD;
+
+  --sev-info: #34D399;
+  --sev-info-bg: rgba(16, 185, 129, 0.18);
+  --sev-info-border: rgba(52, 211, 153, 0.4);
+  --sev-info-text: #A7F3D0;
+
+  --exploit-purple: #C084FC;
+  --exploit-bg: rgba(168, 85, 247, 0.2);
+  --exploit-border: rgba(192, 132, 252, 0.4);
+  --exploit-text: #E9D5FF;
+
+  /* Shadows & Elevation - Dark */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 4px 20px -4px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-card-hover: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 0 20px rgba(45, 212, 191, 0.1);
+  --shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+}
+
+/* ==========================================================================
+   Base & Typography
+   ========================================================================== */
+body {
+  background-color: var(--bg-main) !important;
+  color: var(--text-primary) !important;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+  transition: background-color 0.25s ease, color 0.25s ease;
+  letter-spacing: -0.01em;
+}
+
+html.dark,
+html.dark body {
+  background-color: #0B0F19 !important;
+  color: #F8FAFC !important;
+}
+
+html:not(.dark),
+html:not(.dark) body {
+  background-color: #F8F9FA !important;
+  color: #0F172A !important;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+html.dark ::-webkit-scrollbar-track {
+  background: #0B0F19;
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: #1E293B;
+  border-radius: 4px;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+html:not(.dark) ::-webkit-scrollbar-track {
+  background: #F8F9FA;
+}
+html:not(.dark) ::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* ==========================================================================
+   Card Styling & Elevation (Cantos Arredondados 8px a 12px, Sombras Suaves)
+   ========================================================================== */
+.glass-panel {
+  border-radius: var(--radius-lg);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html.dark .glass-panel {
+  background-color: #131B2E !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.03) !important;
+}
+
+html.dark .glass-panel-hover:hover {
+  transform: translateY(-2px);
+  background-color: #17233B !important;
+  border-color: rgba(45, 212, 191, 0.35) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 0 15px rgba(20, 184, 166, 0.12) !important;
+}
+
+html:not(.dark) .glass-panel {
+  background-color: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 8px 24px -12px rgba(15, 23, 42, 0.08) !important;
+}
+
+html:not(.dark) .glass-panel-hover:hover {
+  transform: translateY(-2px);
+  background-color: #FFFFFF !important;
+  border-color: #0F766E !important;
+  box-shadow: 0 4px 6px -1px rgba(15, 118, 110, 0.06), 0 14px 28px -10px rgba(15, 23, 42, 0.12) !important;
+}
+
+/* ==========================================================================
+   KPI Cards & Minimalist Circular Icon Wrapper
+   ========================================================================== */
+.kpi-icon-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.glass-panel:hover .kpi-icon-circle {
+  transform: scale(1.06);
+}
+
+.kpi-icon-circle-critical {
+  background-color: var(--sev-critical-bg);
+  color: var(--sev-critical);
+}
+.kpi-icon-circle-high {
+  background-color: var(--sev-high-bg);
+  color: var(--sev-high);
+}
+.kpi-icon-circle-medium {
+  background-color: var(--sev-medium-bg);
+  color: var(--sev-medium);
+}
+.kpi-icon-circle-low {
+  background-color: var(--sev-low-bg);
+  color: var(--sev-low);
+}
+.kpi-icon-circle-teal {
+  background-color: var(--brand-primary-surface);
+  color: var(--brand-primary);
+}
+.kpi-icon-circle-ocean {
+  background-color: var(--brand-secondary-surface);
+  color: var(--brand-secondary);
+}
+.kpi-icon-circle-purple {
+  background-color: var(--exploit-bg);
+  color: var(--exploit-purple);
+}
+.kpi-icon-circle-success {
+  background-color: var(--sev-info-bg);
+  color: var(--sev-info);
+}
+
+/* ==========================================================================
+   Severity Badges (CVSS 3.1)
+   ========================================================================== */
+.badge-critical {
+  background-color: var(--sev-critical-bg) !important;
+  color: var(--sev-critical-text) !important;
+  border: 1px solid var(--sev-critical-border) !important;
+  font-weight: 700;
+}
+
+.badge-high {
+  background-color: var(--sev-high-bg) !important;
+  color: var(--sev-high-text) !important;
+  border: 1px solid var(--sev-high-border) !important;
+  font-weight: 700;
+}
+
+.badge-medium {
+  background-color: var(--sev-medium-bg) !important;
+  color: var(--sev-medium-text) !important;
+  border: 1px solid var(--sev-medium-border) !important;
+  font-weight: 600;
+}
+
+.badge-low {
+  background-color: var(--sev-low-bg) !important;
+  color: var(--sev-low-text) !important;
+  border: 1px solid var(--sev-low-border) !important;
+  font-weight: 600;
+}
+
+.badge-info {
+  background-color: var(--sev-info-bg) !important;
+  color: var(--sev-info-text) !important;
+  border: 1px solid var(--sev-info-border) !important;
+  font-weight: 600;
+}
+
+.badge-exploit {
+  background-color: var(--exploit-bg) !important;
+  color: var(--exploit-text) !important;
+  border: 1px solid var(--exploit-border) !important;
+  font-weight: 700;
+  animation: pulse-border 2s infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(124, 58, 237, 0.4); }
+  50% { border-color: rgba(124, 58, 237, 0.85); }
+}
+
+/* Status Badges */
+.badge-remediated {
+  background-color: var(--sev-info-bg) !important;
+  color: var(--sev-info-text) !important;
+  border: 1px solid var(--sev-info-border) !important;
+  font-weight: 600;
+}
+
+.badge-persisting {
+  background-color: var(--sev-medium-bg) !important;
+  color: var(--sev-medium-text) !important;
+  border: 1px solid var(--sev-medium-border) !important;
+  font-weight: 600;
+}
+
+.badge-new {
+  background-color: var(--sev-critical-bg) !important;
+  color: var(--sev-critical-text) !important;
+  border: 1px solid var(--sev-critical-border) !important;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   Navigation Bar & Links (Verde Petróleo Ativo)
+   ========================================================================== */
+.nav-link {
+  transition: all 0.2s ease;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   Sidebar & Vertical Navigation (Menu em coluna do lado esquerdo)
+   ========================================================================== */
+#app-sidebar {
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s ease;
+}
+
+html:not(.dark) #app-sidebar {
+  background-color: #FFFFFF !important;
+  border-right: 1px solid #E2E8F0 !important;
+}
+
+html.dark #app-sidebar {
+  background-color: #101726 !important;
+  border-right: 1px solid #1E293B !important;
+}
+
+.sidebar-link {
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 0.75rem;
+}
+
+html:not(.dark) .sidebar-link {
+  color: #475569;
+  border-bottom: none !important;
+}
+
+html:not(.dark) .sidebar-link:hover {
+  background-color: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+html:not(.dark) .sidebar-link.active {
+  background-color: #E6F4F1 !important; /* Soft Petroleum Teal tint */
+  color: #0F766E !important;
+  border-bottom: none !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 2px rgba(15, 118, 110, 0.06);
+}
+
+html:not(.dark) .sidebar-link.active .sidebar-icon-box {
+  background-color: #CCFBF1 !important;
+  color: #0F766E !important;
+}
+
+html:not(.dark) .sidebar-link.active .sidebar-title {
+  color: #0F766E !important;
+  font-weight: 700 !important;
+}
+
+html:not(.dark) .sidebar-link.active .sidebar-subtitle {
+  color: #0D9488 !important;
+}
+
+html.dark .sidebar-link {
+  color: #94A3B8;
+  border-bottom: none !important;
+}
+
+html.dark .sidebar-link:hover {
+  background-color: #17233B !important;
+  color: #F8FAFC !important;
+}
+
+html.dark .sidebar-link.active {
+  background-color: rgba(20, 184, 166, 0.16) !important;
+  color: #2DD4BF !important;
+  border-bottom: none !important;
+  font-weight: 700 !important;
+}
+
+html.dark .sidebar-link.active .sidebar-icon-box {
+  background-color: rgba(20, 184, 166, 0.25) !important;
+  color: #2DD4BF !important;
+}
+
+html.dark .sidebar-link.active .sidebar-title {
+  color: #2DD4BF !important;
+  font-weight: 700 !important;
+}
+
+html.dark .sidebar-link.active .sidebar-subtitle {
+  color: #5EEAD4 !important;
+}
+
+/* ==========================================================================
+   Tables (Modern Clean Corporate)
+   ========================================================================== */
+.gvul-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+html.dark .gvul-table th {
+  background-color: #0F172A;
+  color: #94A3B8;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #1E293B;
+}
+
+html.dark .gvul-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+  font-size: 0.875rem;
+}
+
+html.dark .gvul-table tbody tr:hover {
+  background-color: rgba(30, 41, 59, 0.45);
+}
+
+html:not(.dark) .gvul-table th {
+  background-color: #F8FAFC !important;
+  color: #475569 !important;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  padding: 0.85rem 1rem;
+  border-bottom: 2px solid #E2E8F0 !important;
+}
+
+html:not(.dark) .gvul-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #E2E8F0 !important;
+  font-size: 0.875rem;
+  color: #1E293B !important;
+}
+
+html:not(.dark) .gvul-table tbody tr:hover {
+  background-color: #F8FAFC !important;
+}
+
+/* Light Mode High-Contrast Table Inner Elements */
+html:not(.dark) .gvul-table td .text-slate-200,
+html:not(.dark) .gvul-table td .text-slate-100 {
+  color: #0F172A !important;
+}
+
+html:not(.dark) .gvul-table td .text-slate-300,
+html:not(.dark) .gvul-table td .text-slate-400 {
+  color: #475569 !important;
+}
+
+html:not(.dark) .gvul-table td .text-sky-400 {
+  color: #0284C7 !important;
+}
+
+html:not(.dark) .gvul-table td .text-amber-300 {
+  color: #B45309 !important;
+}
+
+html:not(.dark) .gvul-table td .text-emerald-400 {
+  color: #0F766E !important;
+}
+
+html:not(.dark) .gvul-table td .text-purple-300,
+html:not(.dark) .gvul-table td .text-purple-400 {
+  color: #7E22CE !important;
+}
+
+/* ==========================================================================
+   Buttons (Verde Petróleo & Acentos de Ação)
+   ========================================================================== */
+.btn-petroleum {
+  background-color: #0F766E;
+  color: #FFFFFF !important;
+  border: 1px solid #0D655E;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px 0 rgba(15, 118, 110, 0.2);
+}
+
+.btn-petroleum:hover {
+  background-color: #0D655E;
+  box-shadow: 0 4px 10px -1px rgba(15, 118, 110, 0.35);
+}
+
+html.dark .btn-petroleum {
+  background-color: #0F766E;
+  color: #FFFFFF !important;
+}
+
+html.dark .btn-petroleum:hover {
+  background-color: #14B8A6;
+}
+
+/* Preserve styled action buttons */
+html:not(.dark) button.bg-sky-600,
+html:not(.dark) a.bg-sky-600 {
+  background-color: #0F766E !important;
+  color: #FFFFFF !important;
+}
+html:not(.dark) button.bg-sky-600:hover,
+html:not(.dark) a.bg-sky-600:hover {
+  background-color: #0D655E !important;
+}
+
+html:not(.dark) button.bg-indigo-600,
+html:not(.dark) button.bg-emerald-600,
+html:not(.dark) button.bg-blue-600,
+html:not(.dark) button.bg-teal-600,
+html:not(.dark) button.bg-amber-600,
+html:not(.dark) button.bg-rose-600,
+html:not(.dark) .btn-primary {
+  color: #FFFFFF !important;
+}
+
+/* ==========================================================================
+   Modais com Backdrop Blur
+   ========================================================================== */
+.modal-backdrop {
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  transition: opacity 0.25s ease;
+}
+
+html.dark .modal-backdrop {
+  background-color: rgba(11, 15, 25, 0.8) !important;
+}
+
+html:not(.dark) .modal-backdrop {
+  background-color: rgba(15, 23, 42, 0.55) !important;
+}
+
+.modal-content {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal);
+}
+
+/* ==========================================================================
+   Light Mode Clean Overrides (Garante visual corporativo sem poluição)
+   ========================================================================== */
+html:not(.dark) body {
+  background-color: #F8F9FA !important;
+  color: #0F172A !important;
+}
+
+html:not(.dark) header {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-bottom-color: #E2E8F0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04) !important;
+}
+
+html:not(.dark) header .border-slate-800,
+html:not(.dark) header .border-slate-800\/80,
+html:not(.dark) header .border-slate-800\/60 {
+  border-color: #E2E8F0 !important;
+}
+
+html:not(.dark) header .bg-slate-950\/60,
+html:not(.dark) header .bg-slate-950\/70,
+html:not(.dark) header .bg-slate-950\/80,
+html:not(.dark) header .bg-slate-950 {
+  background-color: #FFFFFF !important;
+}
+
+html:not(.dark) h1, 
+html:not(.dark) h2, 
+html:not(.dark) h3, 
+html:not(.dark) h4 {
+  color: #0F172A !important;
+}
+
+html:not(.dark) .text-white, 
+html:not(.dark) .text-slate-100, 
+html:not(.dark) .text-slate-200 {
+  color: #0F172A !important;
+}
+
+html:not(.dark) .text-slate-300, 
+html:not(.dark) .text-slate-400 {
+  color: #475569 !important;
+}
+
+html:not(.dark) .text-slate-500 {
+  color: #64748B !important;
+}
+
+html:not(.dark) input:not([type="checkbox"]):not([type="radio"]), 
+html:not(.dark) select, 
+html:not(.dark) textarea {
+  background-color: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+  color: #0F172A !important;
+  border-radius: var(--radius-sm);
+}
+
+html:not(.dark) input::placeholder, 
+html:not(.dark) textarea::placeholder {
+  color: #94A3B8 !important;
+}
+
+html:not(.dark) input:focus, 
+html:not(.dark) select:focus, 
+html:not(.dark) textarea:focus {
+  border-color: #0F766E !important;
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.2) !important;
+}
+
+/* ==========================================================================
+   Comprehensive Light Mode Overrides (html:not(.dark))
+   Fixes dark/opaque/muddy grey boxes, buttons, text blocks and inputs
+   ========================================================================== */
+html:not(.dark) h1,
+html:not(.dark) h2,
+html:not(.dark) h3,
+html:not(.dark) h4 {
+  color: #0F172A !important;
+}
+
+html:not(.dark) .text-white,
+html:not(.dark) .text-slate-100,
+html:not(.dark) .text-slate-200 {
+  color: #0F172A !important;
+}
+
+html:not(.dark) .text-slate-300 {
+  color: #334155 !important;
+}
+html:not(.dark) .text-slate-400 {
+  color: #64748B !important;
+}
+
+/* Neutral Buttons in Light Mode (Cancel, Close, Pagination, Action buttons) */
+html:not(.dark) button.bg-slate-800,
+html:not(.dark) .bg-slate-800:is(button) {
+  background-color: #F1F5F9 !important;
+  color: #334155 !important;
+  border: 1px solid #CBD5E1 !important;
+}
+html:not(.dark) button.bg-slate-800:hover,
+html:not(.dark) .bg-slate-800:is(button):hover {
+  background-color: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+/* Badges and Informative Pills in Light Mode */
+html:not(.dark) span.bg-slate-800,
+html:not(.dark) div.bg-slate-800,
+html:not(.dark) .bg-slate-800:not(button) {
+  background-color: #F1F5F9 !important;
+  color: #475569 !important;
+  border: 1px solid #E2E8F0 !important;
+}
+
+/* ==========================================================================
+   Form Controls (Input, Select, Option, Textarea) - Light & Dark Modes
+   ========================================================================== */
+html:not(.dark) {
+  color-scheme: light;
+}
+
+html:not(.dark) input:not([type="checkbox"]):not([type="radio"]),
+html:not(.dark) select,
+html:not(.dark) textarea {
+  background-color: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+  color-scheme: light !important;
+}
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder {
+  color: #94A3B8 !important;
+}
+html:not(.dark) select option,
+html:not(.dark) option {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+}
+html:not(.dark) select optgroup,
+html:not(.dark) optgroup {
+  background-color: #F1F5F9 !important;
+  color: #475569 !important;
+}
+
+/* Dark Mode Form Controls & Select/Option Menus */
+html.dark input:not([type="checkbox"]):not([type="radio"]),
+html.dark select,
+html.dark textarea {
+  background-color: #101726 !important;
+  border-color: #334155 !important;
+  color: #F8FAFC !important;
+  color-scheme: dark !important;
+}
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748B !important;
+}
+html.dark select option,
+html.dark option {
+  background-color: #101726 !important;
+  color: #F8FAFC !important;
+}
+html.dark select optgroup,
+html.dark optgroup {
+  background-color: #1E293B !important;
+  color: #94A3B8 !important;
+  font-weight: 700;
+}
+html.dark select option:checked {
+  background-color: #1E293B !important;
+  color: #2DD4BF !important;
+}
+html.dark select option:hover {
+  background-color: #1E293B !important;
+  color: #FFFFFF !important;
+}
+
+/* Global Asset Group Filter Specific Styling */
+#global-asset-group-filter {
+  color-scheme: inherit;
+}
+html.dark #global-asset-group-filter {
+  background-color: #101726 !important;
+  color: #F8FAFC !important;
+  color-scheme: dark !important;
+}
+html.dark #global-asset-group-filter option {
+  background-color: #101726 !important;
+  color: #F8FAFC !important;
+  padding: 8px 12px;
+}
+html.dark #global-asset-group-filter option:checked {
+  background-color: #1E293B !important;
+  color: #2DD4BF !important;
+  font-weight: 700;
+}
+html.dark #global-asset-group-filter option:hover {
+  background-color: #1E293B !important;
+  color: #FFFFFF !important;
+}
+html:not(.dark) #global-asset-group-filter {
+  background-color: #F8FAFC !important;
+  color: #0F172A !important;
+  color-scheme: light !important;
+}
+html:not(.dark) #global-asset-group-filter option {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  padding: 8px 12px;
+}
+html:not(.dark) #global-asset-group-filter option:checked {
+  background-color: #F1F5F9 !important;
+  color: #0F766E !important;
+  font-weight: 700;
+}
+
+/* Inner card boxes and panels */
+html:not(.dark) [class*="bg-slate-900"],
+html:not(.dark) [class*="bg-slate-950"] {
+  background-color: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+/* Tinted feature boxes in Light Mode (VPR, Patches, Exploit, Solution) */
+/* 1. Rose / Red (VPR Critical & Patches Pendentes) */
+html:not(.dark) [class*="bg-rose-950"],
+html:not(.dark) [class*="bg-red-950"] {
+  background-color: #FEF2F2 !important;
+  border-color: #FECDD3 !important;
+}
+html:not(.dark) [class*="bg-rose-950"] .text-rose-400,
+html:not(.dark) [class*="bg-rose-950"] .text-rose-300,
+html:not(.dark) [class*="bg-red-950"] .text-red-400,
+html:not(.dark) [class*="bg-red-950"] .text-red-300 {
+  color: #991B1B !important;
+}
+html:not(.dark) [class*="bg-rose-950"] p,
+html:not(.dark) [class*="bg-red-950"] p {
+  color: #991B1B !important;
+}
+
+/* 2. Orange (VPR High) */
+html:not(.dark) [class*="bg-orange-950"] {
+  background-color: #FFF7ED !important;
+  border-color: #FED7AA !important;
+}
+html:not(.dark) [class*="bg-orange-950"] .text-orange-400,
+html:not(.dark) [class*="bg-orange-950"] .text-orange-300 {
+  color: #9A3412 !important;
+}
+
+/* 3. Amber / Yellow (VPR Medium) */
+html:not(.dark) [class*="bg-amber-950"],
+html:not(.dark) [class*="bg-yellow-950"] {
+  background-color: #FFFBEB !important;
+  border-color: #FDE68A !important;
+}
+html:not(.dark) [class*="bg-amber-950"] .text-amber-400,
+html:not(.dark) [class*="bg-amber-950"] .text-amber-300,
+html:not(.dark) [class*="bg-yellow-950"] .text-yellow-400,
+html:not(.dark) [class*="bg-yellow-950"] .text-yellow-300 {
+  color: #92400E !important;
+}
+
+/* 4. Sky / Blue (VPR Low) */
+html:not(.dark) [class*="bg-sky-950"],
+html:not(.dark) [class*="bg-blue-950"] {
+  background-color: #F0F9FF !important;
+  border-color: #BAE6FD !important;
+}
+html:not(.dark) [class*="bg-sky-950"] .text-sky-400,
+html:not(.dark) [class*="bg-sky-950"] .text-sky-300,
+html:not(.dark) [class*="bg-blue-950"] .text-blue-400,
+html:not(.dark) [class*="bg-blue-950"] .text-blue-300 {
+  color: #075985 !important;
+}
+
+/* 5. Emerald / Green (Patches Aplicados & Solution Box) */
+html:not(.dark) [class*="bg-emerald-950"] {
+  background-color: #ECFDF5 !important;
+  border-color: #A7F3D0 !important;
+}
+html:not(.dark) [class*="bg-emerald-950"] .text-emerald-400,
+html:not(.dark) [class*="bg-emerald-950"] .text-emerald-300,
+html:not(.dark) [class*="bg-emerald-950"] .text-emerald-200,
+html:not(.dark) [class*="bg-emerald-950"] .text-emerald-100 {
+  color: #065F46 !important;
+}
+html:not(.dark) #modal-vuln-solution,
+html:not(.dark) #plugin-modal-solution {
+  background-color: #ECFDF5 !important;
+  border: 1px solid #A7F3D0 !important;
+  color: #064E3B !important;
+}
+
+/* 6. Purple / Exploit Box in Modal */
+html:not(.dark) [class*="bg-purple-950"] {
+  background-color: #FAF5FF !important;
+  border-color: #E9D5FF !important;
+}
+html:not(.dark) [class*="bg-purple-950"] .text-purple-400,
+html:not(.dark) [class*="bg-purple-950"] .text-purple-300,
+html:not(.dark) [class*="bg-purple-950"] .text-purple-200 {
+  color: #6B21A8 !important;
+}
+
+/* SLA Tables in Light Mode */
+html:not(.dark) .divide-slate-800 > :not([hidden]) ~ :not([hidden]),
+html:not(.dark) .divide-slate-800\/80 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #E2E8F0 !important;
+}
+html:not(.dark) .border-slate-800,
+html:not(.dark) .border-slate-700,
+html:not(.dark) .border-slate-800\/80,
+html:not(.dark) .border-slate-800\/60,
+html:not(.dark) .border-slate-800\/40 {
+  border-color: #E2E8F0 !important;
+}
+
+/* Modals Container & Backdrop in Light Mode */
+html:not(.dark) .modal-backdrop {
+  background-color: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(5px) !important;
+}
+html:not(.dark) .modal-backdrop .glass-panel {
+  background-color: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.18) !important;
+}
+html:not(.dark) .modal-backdrop .glass-panel pre {
+  background-color: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+html.dark .border-slate-800,
+html.dark .border-slate-800\/80,
+html.dark .border-slate-800\/60,
+html.dark .border-slate-700 {
+  border-color: #1E293B !important;
+}
+
+html.dark .bg-slate-950,
+html.dark .bg-slate-950\/90,
+html.dark .bg-slate-950\/80,
+html.dark .bg-slate-950\/60,
+html.dark .bg-slate-950\/40 {
+  background-color: #0B0F19 !important;
+}
+
+html.dark .bg-slate-900,
+html.dark .bg-slate-900\/90,
+html.dark .bg-slate-900\/80,
+html.dark .bg-slate-900\/60 {
+  background-color: #131B2E !important;
+}
+
+/* ==========================================================================
+   Login Screen Styling (Modern Minimalist Dark / Light)
+   ========================================================================== */
+html.dark #login-view {
+  background: radial-gradient(ellipse 90% 60% at 50% -15%, rgba(15, 118, 110, 0.22), transparent 75%), #0B0F19 !important;
+}
+
+html:not(.dark) #login-view {
+  background: radial-gradient(ellipse 90% 60% at 50% -15%, rgba(15, 118, 110, 0.08), transparent 75%), #F8F9FA !important;
+}
+
+#btn-submit-login {
+  background-color: #0F766E !important;
+  background-image: none !important;
+  box-shadow: 0 4px 14px 0 rgba(15, 118, 110, 0.35) !important;
+  border-radius: 0.75rem !important;
+  transition: all 0.2s ease !important;
+}
+
+#btn-submit-login:hover {
+  background-color: #0D655E !important;
+  background-image: none !important;
+  box-shadow: 0 6px 20px 0 rgba(15, 118, 110, 0.45) !important;
+}
+
+/* Linear Progress Bar */
+.risk-progress-bar {
+  height: 6px;
+  border-radius: 9999px;
+  overflow: hidden;
+  background-color: rgba(226, 232, 240, 0.8);
+}
+html.dark .risk-progress-bar {
+  background-color: rgba(30, 41, 59, 0.8);
+}
+
+.risk-progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Shimmer Loading animation */
+.skeleton {
+  background: linear-gradient(90deg, #131B2E 25%, #1E293B 50%, #131B2E 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

@@ -1,0 +1,55 @@
+services:
+  # MariaDB Database Service
+  mariadb:
+    image: mariadb:11.4
+    container_name: gvulstand_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-gvulstand}
+      MYSQL_USER: ${MYSQL_USER:-gvuluser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gvulstand_net
+
+  # GvulStand Web & Backend Application Service
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gvulstand_app
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER:-gvuluser}:${MYSQL_PASSWORD}@mariadb:3306/${MYSQL_DATABASE:-gvulstand}?charset=utf8mb4
+      - SECRET_KEY=${SECRET_KEY}
+      - DEFAULT_ADMIN_USERNAME=${DEFAULT_ADMIN_USERNAME:-Admin}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-Admin}
+      - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL:-admin@gvulstand.local}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data/uploads:/app/data/uploads
+      - ./frontend:/app/frontend
+      - ./backend/app:/app/backend/app
+    networks:
+      - gvulstand_net
+
+volumes:
+  mariadb_data:
+    driver: local
+
+networks:
+  gvulstand_net:
+    driver: bridge

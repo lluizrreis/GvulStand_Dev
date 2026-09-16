@@ -1,0 +1,17 @@
+# Arquivos de credenciais e ambiente local (em qualquer subdiretorio)
+.env
+*.env
+
+# Cache do Python
+__pycache__/
+*.pyc
+
+# Dados gerados pelo app e uploads do Docker
+data/
+# Caso queira ignorar especificamente apenas os uploads e preservar a pasta:
+# data/uploads/
+
+# Caso existam arquivos sqlite ou dumps locais
+*.sql
+*.sqlite3
+*.db

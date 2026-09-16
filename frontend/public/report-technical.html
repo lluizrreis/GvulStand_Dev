@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatório Técnico Detalhado de Vulnerabilidades & Hosts - GvulStand</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <style>
+    /* ==================================================== */
+    /* IMPRESSÃO & EXPORTAÇÃO EM PDF OTIMIZADA PARA A4      */
+    /* ==================================================== */
+    @page {
+      size: A4 portrait;
+      margin: 8mm 8mm 8mm 8mm;
+    }
+
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+      /* Garante que elementos ocultados pelos filtros não apareçam no PDF */
+      .hidden {
+        display: none !important;
+      }
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        box-sizing: border-box !important;
+      }
+      html, body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 8pt !important;
+        line-height: 1.25 !important;
+      }
+      .report-container {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+      }
+      /* Redução e uniformização rigorosa das fontes em impressão */
+      h1, h2 { font-size: 10.5pt !important; line-height: 1.2 !important; }
+      h3, h4 { font-size: 9pt !important; line-height: 1.2 !important; }
+      p, td, th, span, div, li {
+        font-size: 7.8pt !important;
+        line-height: 1.25 !important;
+      }
+      .font-mono {
+        font-size: 7.2pt !important;
+      }
+      /* Caixa de saída Nessus em fundo claro limpo - ZERO FUNDO ESCURO */
+      .plugin-output-box {
+        font-size: 7.2pt !important;
+        line-height: 1.2 !important;
+        background-color: #f8fafc !important;
+        color: #1e293b !important;
+        border: 1px solid #cbd5e1 !important;
+        padding: 4px 6px !important;
+        border-radius: 4px !important;
+        white-space: pre-wrap !important;
+        word-break: break-all !important;
+        max-height: none !important;
+      }
+      /* Controle preciso de quebra de página sem criar páginas em branco */
+      .avoid-break {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      .host-card {
+        break-inside: auto !important;
+        page-break-inside: auto !important;
+        border: 1px solid #94a3b8 !important;
+        margin-bottom: 8px !important;
+        border-radius: 6px !important;
+      }
+      .host-card-header {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        padding: 4px 6px !important;
+        background-color: #f1f5f9 !important;
+      }
+      .vuln-card {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        border: 1px solid #cbd5e1 !important;
+        margin-bottom: 5px !important;
+        border-radius: 4px !important;
+      }
+      table {
+        page-break-inside: auto;
+        border-collapse: collapse !important;
+        width: 100% !important;
+      }
+      tr {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      th, td {
+        padding: 3px 5px !important;
+        border-color: #cbd5e1 !important;
+      }
+      /* Espaçamentos compactos em impressão para aproveitar cada centímetro da folha */
+      .space-y-8 > * + * { margin-top: 8px !important; }
+      .space-y-6 > * + * { margin-top: 6px !important; }
+      .space-y-4 > * + * { margin-top: 4px !important; }
+      .space-y-3 > * + * { margin-top: 3px !important; }
+      .mb-6 { margin-bottom: 6px !important; }
+      .mb-5 { margin-bottom: 5px !important; }
+      .p-4, .p-6, .p-8 { padding: 4px 6px !important; }
+    }
+
+    @media screen {
+      .report-container {
+        max-width: 1400px;
+        width: 95%;
+      }
+      .report-container.a4-preview {
+        max-width: 210mm;
+      }
+    }
+
+    /* Estilização suave para scrollbar nos blocos de código */
+    .custom-scroll::-webkit-scrollbar {
+      height: 5px;
+      width: 5px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background-color: #94a3b8;
+      border-radius: 3px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background-color: #f1f5f9;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 font-sans min-h-screen antialiased selection:bg-blue-500/20">
+
+  <!-- ==================================================== -->
+  <!-- 1. BARRA SUPERIOR DE AÇÕES (NO-PRINT)                -->
+  <!-- ==================================================== -->
+  <header class="no-print sticky top-0 z-50 bg-slate-900/95 backdrop-blur border-b border-slate-800 text-white px-6 py-2.5 shadow-md">
+    <div class="max-w-[1400px] mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400 font-bold">
+          <i data-lucide="file-code" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <h1 class="text-xs font-bold tracking-tight">GvulStand • Relatório Técnico de Vulnerabilidades & Hosts</h1>
+          <p class="text-[10px] text-slate-400">Dossiê Estruturado para Infraestrutura, Sustentação e DevOps</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Filtro Rápido de Severidade -->
+        <div class="flex items-center space-x-1.5 bg-slate-800/90 px-2.5 py-1 rounded-lg border border-slate-700 text-xs">
+          <i data-lucide="filter" class="w-3 h-3 text-slate-400"></i>
+          <span class="text-[11px] text-slate-300 font-semibold">Severidade:</span>
+          <select id="filter-severity" onchange="filterVulnerabilities()" style="color-scheme: dark;" class="bg-slate-800 text-white text-xs font-medium focus:outline-none cursor-pointer">
+            <option value="all" class="bg-slate-900 text-white">Todas Acionáveis</option>
+            <option value="Critical" class="bg-slate-900 text-rose-400 font-bold">Apenas Críticas</option>
+            <option value="High" class="bg-slate-900 text-orange-400 font-bold">Críticas & Altas</option>
+            <option value="Medium" class="bg-slate-900 text-amber-400 font-medium">Médias e Acima</option>
+            <option value="Low" class="bg-slate-900 text-blue-400">Todas (Incluindo Baixas)</option>
+          </select>
+        </div>
+
+        <!-- Busca Rápida de Host/IP/CVE/Plugin -->
+        <div class="relative">
+          <i data-lucide="search" class="w-3 h-3 text-slate-400 absolute left-2.5 top-2"></i>
+          <input type="text" id="filter-search" oninput="filterHostsAndVulns()" placeholder="Buscar IP, Host, CVE, Plugin..." class="pl-7 pr-2.5 py-1 text-xs bg-slate-800/90 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 w-48">
+        </div>
+
+        <!-- Alternar Evidências -->
+        <button onclick="toggleAllEvidenceRows()" id="btn-toggle-evidence" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center space-x-1.5 transition cursor-pointer border border-slate-700">
+          <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+          <span id="btn-toggle-evidence-text">Ocultar Evidências</span>
+        </button>
+
+        <!-- Alternar Largura Tela / A4 Preview -->
+        <button onclick="toggleWidthPreview()" id="btn-toggle-width" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center space-x-1.5 transition cursor-pointer border border-slate-700" title="Alterna entre largura ampla de tela e simulação A4">
+          <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+          <span id="btn-toggle-width-text">Largura A4</span>
+        </button>
+
+        <!-- Recarregar -->
+        <button onclick="reloadAndReapplyFilters()" class="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700" title="Recarregar dados">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+        </button>
+
+        <!-- Salvar em PDF / Imprimir -->
+        <button onclick="printWithFilters()" class="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-900/30 flex items-center space-x-1.5 transition cursor-pointer">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+          <span>Salvar em PDF / Imprimir</span>
+        </button>
+
+        <!-- Fechar -->
+        <button onclick="window.close()" class="p-1 rounded-lg bg-slate-800 hover:bg-rose-950/60 hover:text-rose-400 text-slate-300 transition border border-slate-700" title="Fechar janela">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================================================== -->
+  <!-- SPINNER DE CARREGAMENTO                              -->
+  <!-- ==================================================== -->
+  <div id="report-loading" class="flex flex-col items-center justify-center min-h-[70vh] p-8">
+    <div class="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+    <p class="mt-3 text-sm font-semibold text-slate-700">Consolidando dossiê técnico de vulnerabilidades...</p>
+    <p class="text-xs text-slate-400 mt-0.5">Carregando inventário de hosts, portas, CVEs, saídas de plugins Nessus e planos de ação</p>
+  </div>
+
+  <!-- CONTAINER DE ERRO -->
+  <div id="report-error" class="hidden max-w-2xl mx-auto my-12 p-6 bg-white rounded-2xl shadow-xl border border-rose-200">
+    <div class="flex items-center space-x-3 text-rose-600">
+      <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+      <h2 class="text-base font-bold">Não foi possível carregar os dados do dossiê técnico</h2>
+    </div>
+    <p id="report-error-msg" class="text-xs text-slate-600 mt-2"></p>
+    <div class="mt-4 flex space-x-3">
+      <button onclick="window.location.reload()" class="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-semibold">Tentar Novamente</button>
+      <button onclick="window.close()" class="px-3 py-1.5 bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">Fechar</button>
+    </div>
+  </div>
+
+  <!-- ==================================================== -->
+  <!-- RELATÓRIO TÉCNICO (CONTAINER PRINCIPAL)              -->
+  <!-- ==================================================== -->
+  <main id="report-content" class="hidden mx-auto my-4 bg-white rounded-xl shadow-xl border border-slate-200 p-5 sm:p-7 report-container transition-all duration-300">
+
+    <!-- ==================================================== -->
+    <!-- CABEÇALHO TÉCNICO & METADADOS                        -->
+    <!-- ==================================================== -->
+    <section class="border-b border-slate-800 pb-3.5 mb-3.5 avoid-break">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center text-blue-400 font-black text-lg shadow-sm border border-slate-700">
+            GV
+          </div>
+          <div>
+            <div class="text-[8.5px] font-black uppercase tracking-widest text-blue-700">GvulStand Security & Infrastructure Dossier</div>
+            <h2 id="meta-title" class="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-tight">
+              Relatório Técnico Detalhado de Vulnerabilidades & Hosts
+            </h2>
+            <p class="text-[10.5px] text-slate-500 font-medium">Dossiê ativo por ativo: portas TCP/UDP, CVEs, evidências técnicas e planos de ação</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col items-start sm:items-end">
+          <span id="meta-classification" class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black tracking-wider uppercase bg-amber-50 text-amber-800 border border-amber-300">
+            CONFIDENCIAL // USO INTERNO
+          </span>
+        </div>
+      </div>
+
+      <!-- GRID DE METADADOS EXECUTIVOS / OPERACIONAIS -->
+      <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+        <div>
+          <span class="text-[9px] font-bold uppercase text-slate-400 block">Escopo / Grupo:</span>
+          <span id="meta-scope" class="font-bold text-slate-800 break-words text-[11px]">-</span>
+        </div>
+        <div>
+          <span class="text-[9px] font-bold uppercase text-slate-400 block">Ciclo de Varredura:</span>
+          <span id="meta-period" class="font-bold text-slate-800 text-[11px]">-</span>
+        </div>
+        <div>
+          <span class="text-[9px] font-bold uppercase text-slate-400 block">Data de Emissão:</span>
+          <span id="meta-date" class="font-bold text-slate-800 font-mono text-[11px]">-</span>
+        </div>
+        <div>
+          <span class="text-[9px] font-bold uppercase text-slate-400 block">Equipe Responsável:</span>
+          <span id="meta-team" class="font-bold text-slate-800 truncate text-[11px]">-</span>
+        </div>
+        <div>
+          <span class="text-[9px] font-bold uppercase text-slate-400 block">Emissor do Laudo:</span>
+          <span id="meta-generated-by" class="font-medium text-slate-700 text-[11px]">-</span>
+        </div>
+        <div class="col-span-1 sm:col-span-3">
+          <span class="text-[9px] font-bold uppercase text-slate-400 block">Scans de Referência (.nessus):</span>
+          <span id="meta-scans" class="font-mono text-[10px] text-slate-700 break-words">-</span>
+        </div>
+      </div>
+
+      <!-- Aviso de Escopo / Observações -->
+      <div id="meta-notes-container" class="hidden mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-800">
+        <div class="flex items-center space-x-1.5">
+          <i data-lucide="alert-circle" class="w-3.5 h-3.5 text-amber-600 flex-shrink-0"></i>
+          <span id="meta-notes-text" class="font-medium text-[11px]"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================== -->
+    <!-- RESUMO TÉCNICO EXECUTIVO (KPIS)                      -->
+    <!-- ==================================================== -->
+    <section class="mb-4 avoid-break">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-[11px] font-black uppercase tracking-wider text-slate-700 flex items-center space-x-1.5">
+          <i data-lucide="bar-chart-3" class="w-3.5 h-3.5 text-blue-600"></i>
+          <span>Resumo Técnico de Exposição & Superfície</span>
+        </h3>
+        <span class="text-[9.5px] font-semibold text-slate-500" id="summary-badge-counts">0 hosts avaliados</span>
+      </div>
+
+      <!-- CARDS DE METRICAS CHAVE -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+        <!-- Total Hosts -->
+        <div class="p-2 bg-slate-50 rounded-lg border border-slate-200 text-center">
+          <span class="text-[8.5px] font-extrabold uppercase tracking-wider text-slate-400 block">Hosts</span>
+          <span id="stat-total-hosts" class="text-base font-black text-slate-900 font-mono">0</span>
+        </div>
+
+        <!-- Total Vulns -->
+        <div class="p-2 bg-slate-50 rounded-lg border border-slate-200 text-center">
+          <span class="text-[8.5px] font-extrabold uppercase tracking-wider text-slate-400 block">Acionáveis</span>
+          <span id="stat-total-vulns" class="text-base font-black text-slate-900 font-mono">0</span>
+        </div>
+
+        <!-- Críticas -->
+        <div class="p-2 bg-rose-50/70 rounded-lg border border-rose-200 text-center">
+          <span class="text-[8.5px] font-extrabold uppercase tracking-wider text-rose-700 block">Críticas</span>
+          <span id="stat-crit-count" class="text-base font-black text-rose-600 font-mono">0</span>
+        </div>
+
+        <!-- Altas -->
+        <div class="p-2 bg-orange-50/70 rounded-lg border border-orange-200 text-center">
+          <span class="text-[8.5px] font-extrabold uppercase tracking-wider text-orange-700 block">Altas</span>
+          <span id="stat-high-count" class="text-base font-black text-orange-600 font-mono">0</span>
+        </div>
+
+        <!-- Médias -->
+        <div class="p-2 bg-amber-50/70 rounded-lg border border-amber-200 text-center">
+          <span class="text-[8.5px] font-extrabold uppercase tracking-wider text-amber-700 block">Médias</span>
+          <span id="stat-med-count" class="text-base font-black text-amber-600 font-mono">0</span>
+        </div>
+
+        <!-- Baixas -->
+        <div class="p-2 bg-blue-50/70 rounded-lg border border-blue-200 text-center">
+          <span class="text-[8.5px] font-extrabold uppercase tracking-wider text-blue-700 block">Baixas</span>
+          <span id="stat-low-count" class="text-base font-black text-blue-600 font-mono">0</span>
+        </div>
+
+        <!-- Exploits -->
+        <div class="p-2 bg-purple-50/70 rounded-lg border border-purple-200 text-center">
+          <span class="text-[8.5px] font-extrabold uppercase tracking-wider text-purple-700 block">Com Exploit</span>
+          <span id="stat-exploits-count" class="text-base font-black text-purple-600 font-mono flex items-center justify-center space-x-0.5">
+            <i data-lucide="zap" class="w-3 h-3 text-purple-600 inline"></i>
+            <span id="stat-exploits-val">0</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- SUB-BARRA: RISK SCORES & TOP PORTAS -->
+      <div class="mt-2 p-2 bg-slate-50 border border-slate-200 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-2 text-xs">
+        <div class="flex items-center space-x-3 text-[11px]">
+          <div>
+            <span class="text-[9px] text-slate-400 font-bold uppercase">Risk Score Médio:</span>
+            <span id="stat-avg-risk" class="font-black text-slate-800 font-mono ml-1">0.0</span>
+          </div>
+          <div>
+            <span class="text-[9px] text-slate-400 font-bold uppercase">Risk Score Máximo:</span>
+            <span id="stat-max-risk" class="font-black text-rose-600 font-mono ml-1">0.0</span>
+          </div>
+        </div>
+
+        <!-- Portas Mais Afetadas -->
+        <div class="flex items-center space-x-1.5 text-[11px]">
+          <span class="text-[9px] font-bold uppercase text-slate-400 flex items-center space-x-1">
+            <i data-lucide="network" class="w-3 h-3 text-slate-500"></i>
+            <span>Top Portas:</span>
+          </span>
+          <div id="top-ports-container" class="flex flex-wrap gap-1">
+            <span class="text-slate-400 text-[10px]">Nenhuma</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================== -->
+    <!-- LISTAGEM DOS DOSSIÊS: ATIVO POR ATIVO                -->
+    <!-- ==================================================== -->
+    <section id="hosts-dossiers-section" class="space-y-4">
+      <!-- Inserido dinamicamente via Javascript -->
+    </section>
+
+    <!-- MENSAGEM QUANDO NENHUM HOST ENCONTRADO -->
+    <div id="no-hosts-message" class="hidden p-6 text-center bg-slate-50 border border-slate-200 rounded-xl my-4">
+      <i data-lucide="shield-alert" class="w-8 h-8 text-slate-400 mx-auto mb-1.5"></i>
+      <h4 class="text-xs font-bold text-slate-700">Nenhum host ou vulnerabilidade encontrada no escopo</h4>
+      <p class="text-[11px] text-slate-500 mt-0.5">Verifique os filtros selecionados ou importe varreduras na aba Scans.</p>
+    </div>
+
+    <!-- ==================================================== -->
+    <!-- RODAPÉ TÉCNICO & TRILHA DE AUDITORIA                -->
+    <!-- ==================================================== -->
+    <footer class="mt-6 pt-3 border-t border-slate-800 text-[9px] text-slate-500 avoid-break">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+        <div class="flex items-center space-x-1.5">
+          <span class="font-bold text-slate-800">GvulStand • Vulnerability Management Platform</span>
+          <span>•</span>
+          <span>Emissão Técnica de Conformidade & Mitigação</span>
+        </div>
+        <div class="font-mono text-[8.5px] text-slate-400">
+          Gerado em: <span id="footer-gen-timestamp">-</span>
+        </div>
+      </div>
+      <div class="mt-0.5 text-slate-400 text-[8.5px]">
+        Relatório técnico auditável para equipes de infraestrutura, redes e suporte. As soluções recomendadas devem ser testadas em ambiente de homologação antes da aplicação em produção.
+      </div>
+    </footer>
+
+  </main>
+
+
+  <!-- ==================================================== -->
+  <!-- SCRIPT DE INICIALIZAÇÃO & POPULAÇÃO DO RELATÓRIO     -->
+  <!-- ==================================================== -->
+  <script>
+    let reportRawData = null;
+    let areEvidenceRowsVisible = true;
+    let isA4PreviewActive = false;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      lucide.createIcons();
+      await loadTechnicalReportData();
+    });
+
+    async function loadTechnicalReportData() {
+      const urlParams = new URLSearchParams(window.location.search);
+      let token = urlParams.get('token') || localStorage.getItem('gvul_token');
+
+      // Preserva o token no localStorage
+      if (urlParams.get('token')) {
+        localStorage.setItem('gvul_token', urlParams.get('token'));
+      }
+
+      const params = {
+        asset_group_id: urlParams.get('asset_group_id') || '',
+        scan_id: urlParams.get('scan_id') || '',
+        period: urlParams.get('period') || '',
+        team: urlParams.get('team') || '',
+        emission_date: urlParams.get('emission_date') || '',
+        title: urlParams.get('title') || '',
+        classification: urlParams.get('classification') || '',
+        severity_min: urlParams.get('severity_min') || ''
+      };
+
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const qs = new URLSearchParams();
+        for (const [k, v] of Object.entries(params)) {
+          if (v && v.trim()) qs.append(k, v.trim());
+        }
+
+        const res = await fetch(`/api/reports/technical-data?${qs.toString()}`, { headers });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || `Erro na geração do relatório técnico (Status HTTP ${res.status})`);
+        }
+
+        const data = await res.json();
+        reportRawData = data;
+        renderTechnicalReport(data);
+
+        document.getElementById('report-loading').classList.add('hidden');
+        document.getElementById('report-content').classList.remove('hidden');
+        lucide.createIcons();
+
+      } catch (err) {
+        console.error('Erro ao carregar dados do relatório técnico:', err);
+        document.getElementById('report-loading').classList.add('hidden');
+        document.getElementById('report-error').classList.remove('hidden');
+        document.getElementById('report-error-msg').textContent = err.message || 'Erro inesperado ao gerar relatório.';
+        lucide.createIcons();
+      }
+    }
+
+    function renderTechnicalReport(data) {
+      const meta = data.metadata || {};
+      const summary = data.summary || {};
+      const hosts = data.hosts || [];
+
+      // 1. Metadados
+      if (meta.title) document.getElementById('meta-title').textContent = meta.title;
+      if (meta.classification) {
+        document.getElementById('meta-classification').textContent = meta.classification.replace(/\s*-\s*TLP:(AMBER|RED|GREEN|CLEAR)/gi, '').trim();
+      }
+      if (meta.scope_name) document.getElementById('meta-scope').textContent = meta.scope_name;
+      if (meta.period) document.getElementById('meta-period').textContent = meta.period;
+      if (meta.emission_date) document.getElementById('meta-date').textContent = meta.emission_date;
+      if (meta.team) document.getElementById('meta-team').textContent = meta.team;
+      if (meta.generated_by) document.getElementById('meta-generated-by').textContent = meta.generated_by;
+
+      if (meta.scan_names && meta.scan_names.length > 0) {
+        document.getElementById('meta-scans').textContent = meta.scan_names.join(', ');
+      } else {
+        document.getElementById('meta-scans').textContent = 'Todos os scans vigentes no escopo';
+      }
+
+      if (meta.notes) {
+        document.getElementById('meta-notes-container').classList.remove('hidden');
+        document.getElementById('meta-notes-text').textContent = meta.notes;
+      }
+
+      document.getElementById('footer-gen-timestamp').textContent = meta.emission_date || new Date().toLocaleString('pt-BR');
+
+      // 2. Estatísticas Globais
+      document.getElementById('stat-total-hosts').textContent = summary.total_hosts || 0;
+      document.getElementById('stat-total-vulns').textContent = summary.total_actionable_vulns || 0;
+      document.getElementById('stat-crit-count').textContent = summary.critical_count || 0;
+      document.getElementById('stat-high-count').textContent = summary.high_count || 0;
+      document.getElementById('stat-med-count').textContent = summary.medium_count || 0;
+      document.getElementById('stat-low-count').textContent = summary.low_count || 0;
+      document.getElementById('stat-exploits-val').textContent = summary.exploitable_count || 0;
+      document.getElementById('stat-avg-risk').textContent = (summary.avg_risk_score || 0).toFixed(1);
+      document.getElementById('stat-max-risk').textContent = (summary.max_risk_score || 0).toFixed(1);
+
+      document.getElementById('summary-badge-counts').textContent = `${summary.total_hosts || 0} hosts avaliados • ${summary.total_actionable_vulns || 0} vulnerabilidades acionáveis`;
+
+      // Top Portas
+      const topPortsContainer = document.getElementById('top-ports-container');
+      if (summary.top_ports && summary.top_ports.length > 0) {
+        topPortsContainer.innerHTML = summary.top_ports.map(p => `
+          <span class="px-1.5 py-0.5 rounded bg-slate-200 text-slate-800 font-mono text-[9px] font-bold">
+            ${p.port}/${p.protocol} <span class="text-slate-500 font-normal">(${p.count})</span>
+          </span>
+        `).join('');
+      } else {
+        topPortsContainer.innerHTML = `<span class="text-slate-400 text-[9px]">Nenhuma porta aberta</span>`;
+      }
+
+      // 3. Renderização dos Dossiês de Hosts
+      renderHostsList(hosts);
+    }
+
+    function renderHostsList(hosts) {
+      const container = document.getElementById('hosts-dossiers-section');
+      const noHostsMsg = document.getElementById('no-hosts-message');
+
+      if (!hosts || hosts.length === 0) {
+        container.innerHTML = '';
+        noHostsMsg.classList.remove('hidden');
+        return;
+      }
+
+      noHostsMsg.classList.add('hidden');
+
+      container.innerHTML = hosts.map((h, idx) => {
+        // Cor do Risk Score
+        let riskBadgeClass = 'bg-slate-100 text-slate-700 border-slate-300';
+        let riskLabel = 'Baixo';
+        if (h.risk_score >= 120) {
+          riskBadgeClass = 'bg-rose-100 text-rose-800 border-rose-300';
+          riskLabel = 'Crítico';
+        } else if (h.risk_score >= 60) {
+          riskBadgeClass = 'bg-orange-100 text-orange-800 border-orange-300';
+          riskLabel = 'Alto';
+        } else if (h.risk_score >= 20) {
+          riskBadgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
+          riskLabel = 'Médio';
+        }
+
+        const vulnsHtml = renderVulnerabilitiesTable(h.vulnerabilities, h.host_id || idx);
+
+        return `
+          <div class="host-card rounded-xl border border-slate-300 bg-white shadow-sm overflow-hidden mb-4" data-host-id="${h.host_id}" data-ip="${h.ip_address}" data-hostname="${h.hostname || ''}">
+            <!-- CABEÇALHO DO DOSSIÊ DO ATIVO (EVITA QUEBRA ISOLADA) -->
+            <div class="host-card-header p-2.5 bg-slate-100/90 border-b border-slate-300 avoid-break flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div class="flex items-center space-x-2.5">
+                <div class="w-6 h-6 rounded bg-slate-800 text-white flex items-center justify-center font-black text-[10px] flex-shrink-0">
+                  #${idx + 1}
+                </div>
+                <div>
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    <span class="font-mono text-sm font-black text-slate-900 tracking-tight">${h.ip_address}</span>
+                    ${h.hostname ? `<span class="px-1.5 py-0.2 rounded bg-blue-50 text-blue-800 border border-blue-200 text-[10.5px] font-bold">${escapeHtml(h.hostname)}</span>` : ''}
+                    ${h.netbios_name && h.netbios_name !== h.hostname ? `<span class="px-1 py-0.2 rounded bg-slate-200 text-slate-700 text-[9.5px] font-mono">${escapeHtml(h.netbios_name)}</span>` : ''}
+                    <span class="px-1.5 py-0.2 rounded bg-white text-slate-700 border border-slate-300 text-[10px] font-medium">
+                      ${escapeHtml(h.os || 'SO Não Identificado')}
+                    </span>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-1.5 mt-0.5 text-[10px] text-slate-500">
+                    <span><strong class="text-slate-700">Grupo:</strong> ${escapeHtml(h.asset_group_name)}</span>
+                    <span>•</span>
+                    <span><strong class="text-slate-700">Vulnerabilidades:</strong> ${h.total_actionable_vulns}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- BADGES DE SEVERIDADE E RISK SCORE DO HOST -->
+              <div class="flex flex-wrap items-center gap-1 self-start sm:self-auto">
+                <span class="px-2 py-0.5 rounded border text-[10.5px] font-black font-mono ${riskBadgeClass}">
+                  Risk: ${h.risk_score.toFixed(1)} (${riskLabel})
+                </span>
+
+                ${h.critical_count > 0 ? `
+                  <span class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-300 text-[10px] font-bold">
+                    ${h.critical_count} Crítica${h.critical_count > 1 ? 's' : ''}
+                  </span>
+                ` : ''}
+
+                ${h.high_count > 0 ? `
+                  <span class="px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-300 text-[10px] font-bold">
+                    ${h.high_count} Alta${h.high_count > 1 ? 's' : ''}
+                  </span>
+                ` : ''}
+
+                ${h.medium_count > 0 ? `
+                  <span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-300 text-[10px] font-bold">
+                    ${h.medium_count} Média${h.medium_count > 1 ? 's' : ''}
+                  </span>
+                ` : ''}
+
+                ${h.low_count > 0 ? `
+                  <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-300 text-[10px] font-bold">
+                    ${h.low_count} Baixa${h.low_count > 1 ? 's' : ''}
+                  </span>
+                ` : ''}
+
+                ${h.exploits_count > 0 ? `
+                  <span class="px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-300 text-[10px] font-bold flex items-center space-x-0.5">
+                    <i data-lucide="zap" class="w-2.5 h-2.5 text-purple-600"></i>
+                    <span>${h.exploits_count} Exploit${h.exploits_count > 1 ? 's' : ''}</span>
+                  </span>
+                ` : ''}
+              </div>
+            </div>
+
+            <!-- TABELAS DAS VULNERABILIDADES DO ATIVO (ESTRUTURA SOLICITADA) -->
+            <div class="p-2.5 bg-slate-50/40 space-y-2.5">
+              ${vulnsHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    /* ====================================================================== */
+    /* ESTRUTURAÇÃO EXATA DA TABELA CONFORME O MODELO/ESBOÇO ENVIADO PELO USUÁRIO */
+    /* ====================================================================== */
+    function renderVulnerabilitiesTable(vulns, hostId) {
+      if (!vulns || vulns.length === 0) {
+        return `
+          <div class="p-3 text-center text-[11px] text-slate-500 italic bg-white rounded border border-slate-200">
+            Nenhuma vulnerabilidade crítica, alta, média ou baixa detectada neste ativo.
+          </div>
+        `;
+      }
+
+      return vulns.map((v, i) => {
+        // Badges de severidade
+        let sevClass = 'bg-slate-100 text-slate-700 border-slate-300';
+        if (v.severity === 'Critical') sevClass = 'bg-rose-100 text-rose-800 border-rose-400 font-black';
+        else if (v.severity === 'High') sevClass = 'bg-orange-100 text-orange-800 border-orange-400 font-extrabold';
+        else if (v.severity === 'Medium') sevClass = 'bg-amber-100 text-amber-800 border-amber-400 font-bold';
+        else if (v.severity === 'Low') sevClass = 'bg-blue-100 text-blue-800 border-blue-400 font-semibold';
+
+        // CVEs list - Tratamento inteligente para evitar ocupar páginas inteiras
+        let cvesHtml = '';
+        if (v.cve_list && v.cve_list.length > 0) {
+          if (v.cve_list.length <= 8) {
+            cvesHtml = v.cve_list.map(c => `
+              <span class="inline-block px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-300 text-[10px] print:text-[7.2pt] font-mono font-bold mr-1 my-0.5">
+                ${escapeHtml(c)}
+              </span>
+            `).join('');
+          } else {
+            // Se houver dezenas/centenas de CVEs (ex: KB rollup Windows com 150 CVEs),
+            // renderiza como texto mono fluido compacto sem inchar o layout
+            cvesHtml = `
+              <div class="text-[10px] print:text-[7.2pt] font-mono text-slate-700 leading-normal">
+                ${v.cve_list.map(c => escapeHtml(c)).join(', ')}
+                <span class="text-slate-400 font-sans text-[9px] font-bold ml-1">(${v.cve_list.length} CVEs)</span>
+              </div>
+            `;
+          }
+        } else if (v.cve && v.cve.trim()) {
+          cvesHtml = `<span class="inline-block px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-300 text-[10px] print:text-[7.2pt] font-mono font-bold">${escapeHtml(v.cve)}</span>`;
+        } else {
+          cvesHtml = `<span class="text-slate-400 italic text-[10px] print:text-[7.2pt]">Nenhuma CVE formal associada a este plugin Nessus.</span>`;
+        }
+
+        // Exploit tag
+        const exploitTag = v.exploit_available
+          ? `<span class="inline-flex items-center px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 border border-purple-300 text-[9px] print:text-[6.8pt] font-bold space-x-0.5 ml-1">
+               <i data-lucide="zap" class="w-2.5 h-2.5 text-purple-700"></i>
+               <span>Exploit</span>
+             </span>`
+          : '';
+
+        // Porta / Protocolo
+        const portStr = (v.port && v.port > 0) ? `${v.port}/${v.protocol}` : `0/${v.protocol || 'tcp'}`;
+
+        const detailId = `output-${hostId}-${v.id || i}`;
+
+        // Construção do conteúdo da Evidência / Plugin Output (TOTALMENTE CLARO - SEM FUNDO ESCURO)
+        let evidenceContent = '';
+        const evidenceParts = [];
+
+        if (v.synopsis && v.synopsis.trim()) {
+          evidenceParts.push(`
+            <div class="mb-1.5 p-1.5 bg-slate-50 border border-slate-200 rounded">
+              <span class="text-blue-800 font-bold uppercase tracking-wider text-[8.5px] print:text-[6.8pt] block">Sinopse do Risco:</span>
+              <p class="text-slate-800 text-[10.5px] print:text-[7.5pt] leading-tight font-sans">${escapeHtml(v.synopsis)}</p>
+            </div>
+          `);
+        }
+
+        if (v.exploit_frameworks && v.exploit_frameworks.trim()) {
+          evidenceParts.push(`
+            <div class="mb-1.5 p-1.5 bg-purple-50 border border-purple-200 rounded text-purple-900 text-[10px] print:text-[7.2pt]">
+              <span class="text-purple-800 font-bold uppercase tracking-wider text-[8.5px] print:text-[6.8pt] block">Vetores / Frameworks de Exploração:</span>
+              <p class="font-mono text-[10px] print:text-[7.2pt] font-semibold">${escapeHtml(v.exploit_frameworks)}</p>
+            </div>
+          `);
+        }
+
+        if (v.plugin_output && v.plugin_output.trim().length > 0) {
+          evidenceParts.push(`
+            <div>
+              <div class="flex items-center justify-between no-print mb-0.5">
+                <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Saída Bruta do Plugin Nessus:</span>
+                <button type="button" onclick="copyOutputToClipboard('${detailId}', this)" class="px-1.5 py-0.2 rounded bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-[9px] font-bold flex items-center space-x-0.5 transition cursor-pointer">
+                  <i data-lucide="copy" class="w-2.5 h-2.5"></i>
+                  <span>Copiar</span>
+                </button>
+              </div>
+              <pre id="${detailId}" class="plugin-output-box p-2 bg-slate-50 text-slate-800 rounded border border-slate-300 font-mono text-[9.5px] print:text-[7.2pt] leading-tight select-all overflow-x-auto">${escapeHtml(v.plugin_output)}</pre>
+            </div>
+          `);
+        }
+
+        if (evidenceParts.length === 0) {
+          evidenceContent = `<span class="text-slate-400 italic text-[10px] print:text-[7.2pt]">Nenhuma evidência bruta registrada pelo scanner para este apontamento.</span>`;
+        } else {
+          evidenceContent = evidenceParts.join('');
+        }
+
+        /* TABELA ESTRUTURADA COM COLGROUP E LARGURAS FIXAS (16%, 16%, 16%, 52%) */
+        return `
+          <div class="vuln-card border border-slate-300 rounded-lg overflow-hidden shadow-xs bg-white" data-severity="${v.severity}" data-plugin="${v.plugin_id}" data-name="${escapeHtml(v.plugin_name)}" data-cve="${escapeHtml(v.cve || '')}">
+            <table class="w-full text-left border-collapse table-fixed text-[11px] print:text-[7.8pt]">
+              <colgroup>
+                <col style="width: 16%;">
+                <col style="width: 16%;">
+                <col style="width: 16%;">
+                <col style="width: 52%;">
+              </colgroup>
+              <!-- LINHA 1: CABEÇALHOS BÁSICOS -->
+              <thead>
+                <tr class="bg-slate-100 border-b border-slate-300 text-slate-700 text-[10px] print:text-[7.2pt] font-bold uppercase tracking-wider">
+                  <th class="p-1.5 border-r border-slate-300 text-center">Plugin ID</th>
+                  <th class="p-1.5 border-r border-slate-300 text-center">Severidade</th>
+                  <th class="p-1.5 border-r border-slate-300 text-center">Porta / Proto</th>
+                  <th class="p-1.5 pl-2.5">Vulnerabilidade</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- LINHA 2: VALORES BÁSICOS -->
+                <tr class="border-b border-slate-300 bg-white">
+                  <!-- Plugin ID -->
+                  <td class="p-1.5 border-r border-slate-300 text-center font-mono font-bold text-slate-900 whitespace-nowrap align-middle">
+                    <span class="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-300 text-[10.5px] print:text-[7.5pt]">#${v.plugin_id}</span>
+                  </td>
+
+                  <!-- Severidade -->
+                  <td class="p-1.5 border-r border-slate-300 text-center whitespace-nowrap align-middle">
+                    <span class="inline-block px-2 py-0.5 rounded text-[10px] print:text-[7.2pt] uppercase border tracking-wider ${sevClass}">
+                      ${v.severity}
+                    </span>
+                  </td>
+
+                  <!-- Porta / Proto -->
+                  <td class="p-1.5 border-r border-slate-300 text-center font-mono font-bold text-slate-800 whitespace-nowrap align-middle text-[10.5px] print:text-[7.5pt]">
+                    ${portStr}
+                  </td>
+
+                  <!-- Nome da Vulnerabilidade -->
+                  <td class="p-1.5 pl-2.5 align-middle">
+                    <span class="font-bold text-slate-900 text-xs print:text-[8pt] leading-tight">${escapeHtml(v.plugin_name)}</span>
+                    ${v.cvss_v3 ? `<span class="ml-1 px-1 py-0.2 rounded bg-slate-800 text-white font-mono text-[9px] print:text-[6.8pt] font-bold whitespace-nowrap">CVSS v3: ${v.cvss_v3}</span>` : ''}
+                    ${exploitTag}
+                  </td>
+                </tr>
+
+                <!-- LINHA 3: CABEÇALHO CVE -->
+                <tr class="bg-slate-100 border-b border-slate-300 text-slate-700 text-[10px] print:text-[7.2pt] font-bold uppercase tracking-wider">
+                  <td colspan="4" class="py-1 px-2">CVE</td>
+                </tr>
+
+                <!-- LINHA 4: LISTAGEM DE CVE'S -->
+                <tr class="border-b border-slate-300 bg-white">
+                  <td colspan="4" class="p-1.5 pl-2 text-slate-800">
+                    ${cvesHtml}
+                  </td>
+                </tr>
+
+                <!-- LINHA 5: SOLUÇÃO RECOMENDADA -->
+                <tr class="border-b border-slate-300 bg-white">
+                  <td class="p-2 bg-slate-50 border-r border-slate-300 font-bold text-slate-800 align-top text-[10.5px] print:text-[7.5pt] whitespace-nowrap">
+                    Solução Recomendada
+                  </td>
+                  <td colspan="3" class="p-2 text-slate-800 leading-relaxed align-top text-[11px] print:text-[7.8pt]">
+                    ${v.solution ? escapeHtml(v.solution) : '<span class="text-slate-400 italic">Nenhuma recomendação específica cadastrada no plugin Nessus.</span>'}
+                  </td>
+                </tr>
+
+                <!-- LINHA 6: EVIDÊNCIA / PLUGIN OUTPUT -->
+                <tr class="evidence-row bg-white">
+                  <td class="p-2 bg-slate-50 border-r border-slate-300 font-bold text-slate-800 align-top text-[10.5px] print:text-[7.5pt] whitespace-nowrap">
+                    Evidência / Plugin Output
+                  </td>
+                  <td colspan="3" class="p-2 text-slate-800 align-top">
+                    ${evidenceContent}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleAllEvidenceRows() {
+      areEvidenceRowsVisible = !areEvidenceRowsVisible;
+      const rows = document.querySelectorAll('.evidence-row');
+      rows.forEach(r => {
+        if (areEvidenceRowsVisible) {
+          r.classList.remove('hidden');
+        } else {
+          r.classList.add('hidden');
+        }
+      });
+
+      const btnText = document.getElementById('btn-toggle-evidence-text');
+      if (btnText) {
+        btnText.textContent = areEvidenceRowsVisible ? 'Ocultar Evidências' : 'Exibir Evidências';
+      }
+    }
+
+    function toggleWidthPreview() {
+      isA4PreviewActive = !isA4PreviewActive;
+      const main = document.getElementById('report-content');
+      const btnText = document.getElementById('btn-toggle-width-text');
+      if (isA4PreviewActive) {
+        main.classList.add('a4-preview');
+        if (btnText) btnText.textContent = 'Largura Ampla';
+      } else {
+        main.classList.remove('a4-preview');
+        if (btnText) btnText.textContent = 'Largura A4';
+      }
+    }
+
+    function copyOutputToClipboard(elementId, btn) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+      const text = el.innerText || el.textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = `<i data-lucide="check" class="w-2.5 h-2.5 text-emerald-600 inline"></i> <span class="text-emerald-600">Copiado!</span>`;
+        lucide.createIcons();
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          lucide.createIcons();
+        }, 2000);
+      }).catch(err => {
+        console.error('Falha ao copiar:', err);
+      });
+    }
+
+    async function reloadAndReapplyFilters() {
+      // Salva os filtros atuais antes de recarregar
+      const sevSelect = document.getElementById('filter-severity');
+      const searchInput = document.getElementById('filter-search');
+      const savedSev = sevSelect ? sevSelect.value : 'all';
+      const savedSearch = searchInput ? searchInput.value : '';
+
+      // Recarrega os dados da API
+      document.getElementById('report-content').classList.add('hidden');
+      document.getElementById('report-loading').classList.remove('hidden');
+
+      await loadTechnicalReportData();
+
+      // Restaura os filtros e reaplicar
+      const sevSelectNew = document.getElementById('filter-severity');
+      const searchInputNew = document.getElementById('filter-search');
+      if (sevSelectNew) sevSelectNew.value = savedSev;
+      if (searchInputNew) searchInputNew.value = savedSearch;
+
+      if (savedSev !== 'all' || savedSearch.trim() !== '') {
+        filterHostsAndVulns();
+      }
+    }
+
+    function printWithFilters() {
+      // Garante que os filtros estão aplicados antes de imprimir
+      filterHostsAndVulns();
+      window.print();
+    }
+
+    function filterVulnerabilities() {
+      filterHostsAndVulns();
+    }
+
+    function filterHostsAndVulns() {
+      const sevSelect = document.getElementById('filter-severity');
+      const searchInput = document.getElementById('filter-search');
+
+      const selectedSev = sevSelect ? sevSelect.value : 'all';
+      const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+      const hostCards = document.querySelectorAll('.host-card');
+
+      hostCards.forEach(card => {
+        const hostIp = (card.dataset.ip || '').toLowerCase();
+        const hostName = (card.dataset.hostname || '').toLowerCase();
+        const vulnCards = card.querySelectorAll('.vuln-card');
+
+        let visibleCount = 0;
+
+        vulnCards.forEach(vCard => {
+          const rowSev = vCard.dataset.severity;
+          const rowPlugin = (vCard.dataset.plugin || '').toLowerCase();
+          const rowName = (vCard.dataset.name || '').toLowerCase();
+          const rowCve = (vCard.dataset.cve || '').toLowerCase();
+
+          // Checagem de severidade
+          let matchesSev = true;
+          if (selectedSev === 'Critical') matchesSev = (rowSev === 'Critical');
+          else if (selectedSev === 'High') matchesSev = (rowSev === 'Critical' || rowSev === 'High');
+          else if (selectedSev === 'Medium') matchesSev = (rowSev === 'Critical' || rowSev === 'High' || rowSev === 'Medium');
+          else if (selectedSev === 'Low') matchesSev = true; // Todas acionáveis
+
+          // Checagem de busca textual
+          let matchesSearch = true;
+          if (searchTerm) {
+            matchesSearch = hostIp.includes(searchTerm) ||
+                            hostName.includes(searchTerm) ||
+                            rowPlugin.includes(searchTerm) ||
+                            rowName.includes(searchTerm) ||
+                            rowCve.includes(searchTerm);
+          }
+
+          if (matchesSev && matchesSearch) {
+            vCard.classList.remove('hidden');
+            visibleCount++;
+          } else {
+            vCard.classList.add('hidden');
+          }
+        });
+
+        // Oculta o card se não houver vulnerabilidades visíveis correspondentes
+        if (visibleCount > 0) {
+          card.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>

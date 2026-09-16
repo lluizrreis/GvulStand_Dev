@@ -1,0 +1,352 @@
+import re
+import math
+from datetime import datetime, timezone
+from typing import List, Optional, Union, Set
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import case
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app import models, schemas
+from app.auth import get_current_user, require_analyst_or_admin, check_user_group_access, get_user_allowed_group_ids
+from app.services.scan_service import get_latest_scan_ids
+from app.services.parameter_service import apply_indicator_exclusion, get_ignored_ids_set
+
+router = APIRouter(prefix="/vulnerabilities", tags=["Gestão e Exploração de Vulnerabilidades"])
+
+def calculate_aging_days(v: models.Vulnerability) -> int:
+    ref = v.first_found or v.created_at
+    if not ref:
+        return 0
+    if ref.tzinfo is not None:
+        now = datetime.now(timezone.utc)
+    else:
+        now = datetime.utcnow()
+    diff = (now - ref).days
+    return max(0, diff)
+
+def format_vuln_out(v: models.Vulnerability, ignored_ids: Optional[Set[str]] = None) -> schemas.VulnerabilityOut:
+    out = schemas.VulnerabilityOut.model_validate(v)
+    out.host_ip = v.host.ip_address if v.host else ""
+    out.host_name = v.host.hostname if v.host else ""
+    out.asset_group_name = v.asset_group.name if v.asset_group else ""
+    out.aging_days = calculate_aging_days(v)
+    out.treated_by_username = v.treated_by_username
+    out.treated_at = v.treated_at
+    out.first_found = v.first_found
+    out.last_found = v.last_found
+    cves = [c.strip() for c in re.findall(r"CVE-\d{4}-\d{4,7}", v.cve or "", re.IGNORECASE)] if v.cve else []
+    out.cve_list = cves
+    out.cve_count = len(cves)
+    if ignored_ids is not None:
+        out.is_ignored_in_indicators = (v.plugin_id in ignored_ids) or (str(v.id) in ignored_ids)
+    return out
+
+@router.get("", response_model=Union[schemas.PaginatedVulnerabilitiesOut, List[schemas.VulnerabilityOut]])
+def list_vulnerabilities(
+    asset_group_id: Optional[int] = None,
+    scan_id: Optional[int] = None,
+    host_id: Optional[int] = None,
+    host: Optional[str] = None,
+    severity: Optional[str] = None,
+    exclude_info: bool = False,
+    exploit_only: bool = False,
+    has_exploit: Optional[str] = None,
+    treatment_status: Optional[str] = None,
+    search: Optional[str] = None,
+    exclude_ignored: bool = False,
+    page: Optional[int] = None,
+    page_size: int = Query(50, le=200),
+    limit: Optional[int] = Query(None, le=500),
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Lista e filtra vulnerabilidades detalhadas na base de dados com suporte a paginação completa,
+    filtro por host/IP específico, informações de aging e auditoria.
+    """
+    query = db.query(models.Vulnerability)\
+        .join(models.Host, models.Vulnerability.host_id == models.Host.id)\
+        .join(models.AssetGroup, models.Vulnerability.asset_group_id == models.AssetGroup.id)
+
+    allowed_ids = get_user_allowed_group_ids(db, current_user, action="view")
+    if allowed_ids is not None:
+        if asset_group_id:
+            check_user_group_access(db, current_user, asset_group_id, action="view")
+        else:
+            query = query.filter(models.Vulnerability.asset_group_id.in_(allowed_ids))
+
+    if host_id:
+        query = query.filter(models.Vulnerability.host_id == host_id)
+    elif scan_id:
+        query = query.filter(models.Vulnerability.scan_id == scan_id)
+    else:
+        active_scan_ids = get_latest_scan_ids(db, asset_group_id)
+        if not active_scan_ids:
+            if page is not None:
+                return schemas.PaginatedVulnerabilitiesOut(
+                    items=[],
+                    total=0,
+                    page=1,
+                    page_size=page_size,
+                    total_pages=1
+                )
+            return []
+        query = query.filter(models.Vulnerability.scan_id.in_(active_scan_ids))
+
+    # Specific Host/IP filter
+    if host:
+        host_clean = host.strip()
+        if host_clean:
+            host_term = f"%{host_clean}%"
+            query = query.filter(
+                (models.Host.ip_address.ilike(host_term)) |
+                (models.Host.hostname.ilike(host_term))
+            )
+
+    if severity:
+        query = query.filter(models.Vulnerability.severity == severity)
+    elif exclude_info:
+        query = query.filter(models.Vulnerability.severity.notin_(["Info", "None", "none", "info"]))
+    
+    # Filter by exploit (SIM / NÃO / Todos)
+    if has_exploit is not None and has_exploit != "":
+        if str(has_exploit).lower() in ("true", "1", "yes", "sim"):
+            query = query.filter(models.Vulnerability.exploit_available == True)
+        elif str(has_exploit).lower() in ("false", "0", "no", "nao", "não"):
+            query = query.filter(models.Vulnerability.exploit_available == False)
+    elif exploit_only:
+        query = query.filter(models.Vulnerability.exploit_available == True)
+    if treatment_status:
+        query = query.filter(models.Vulnerability.treatment_status == treatment_status)
+    if search:
+        term = f"%{search}%"
+        query = query.filter(
+            (models.Vulnerability.plugin_name.ilike(term)) |
+            (models.Vulnerability.cve.ilike(term)) |
+            (models.Vulnerability.plugin_id.ilike(term)) |
+            (models.Host.ip_address.ilike(term)) |
+            (models.Host.hostname.ilike(term))
+        )
+
+    if exclude_ignored:
+        query = apply_indicator_exclusion(query, db)
+
+    ignored_ids = get_ignored_ids_set(db)
+
+    # Order by Critical, then exploit, then CVSS
+    ordered_query = query.order_by(
+        case(
+            (models.Vulnerability.severity == "Critical", 1),
+            (models.Vulnerability.severity == "High", 2),
+            (models.Vulnerability.severity == "Medium", 3),
+            (models.Vulnerability.severity == "Low", 4),
+            else_=5
+        ),
+        models.Vulnerability.exploit_available.desc(),
+        models.Vulnerability.cvss_v3.desc(),
+        models.Vulnerability.id.desc()
+    )
+
+    if page is not None:
+        total = ordered_query.count()
+        p = max(1, page)
+        ps = max(1, min(page_size, 200))
+        offset_val = (p - 1) * ps
+        total_pages = max(1, math.ceil(total / ps))
+        items = ordered_query.offset(offset_val).limit(ps).all()
+        return schemas.PaginatedVulnerabilitiesOut(
+            items=[format_vuln_out(v, ignored_ids) for v in items],
+            total=total,
+            page=p,
+            page_size=ps,
+            total_pages=total_pages
+        )
+
+    lim = limit if limit is not None else 100
+    vulns = ordered_query.offset(offset).limit(lim).all()
+    return [format_vuln_out(v, ignored_ids) for v in vulns]
+
+@router.get("/unique-hosts", response_model=List[dict])
+def get_unique_hosts(
+    asset_group_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Retorna lista de hosts únicos (IP e hostname) para autocomplete nos filtros."""
+    active_scan_ids = get_latest_scan_ids(db, asset_group_id)
+    if not active_scan_ids:
+        return []
+    hosts = db.query(models.Host.ip_address, models.Host.hostname)\
+        .filter(models.Host.scan_id.in_(active_scan_ids))\
+        .distinct()\
+        .order_by(models.Host.ip_address)\
+        .all()
+    return [{"ip": h.ip_address, "hostname": h.hostname or ""} for h in hosts]
+
+@router.get("/{vuln_id}", response_model=schemas.VulnerabilityOut)
+def get_vulnerability(
+    vuln_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Obtém detalhes completos de uma vulnerabilidade específica com histórico de tratativa."""
+    v = db.query(models.Vulnerability).filter(models.Vulnerability.id == vuln_id).first()
+    if not v:
+        raise HTTPException(status_code=404, detail="Vulnerabilidade não encontrada.")
+    return format_vuln_out(v, get_ignored_ids_set(db))
+
+@router.patch("/{vuln_id}/treatment", response_model=schemas.VulnerabilityOut)
+def update_vulnerability_treatment(
+    vuln_id: int,
+    data: schemas.VulnerabilityStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_analyst_or_admin)
+):
+    """
+    Atualiza o status de tratamento de uma vulnerabilidade (ISO 27001),
+    registrando auditoria completa de QUEM realizou a tratativa e QUANDO.
+    A nota de auditoria é obrigatória. Cada alteração gera um registro no histórico.
+    """
+    v = db.query(models.Vulnerability).filter(models.Vulnerability.id == vuln_id).first()
+    if not v:
+        raise HTTPException(status_code=404, detail="Vulnerabilidade não encontrada.")
+
+    check_user_group_access(db, current_user, v.asset_group_id, action="treat")
+
+    # Nota obrigatória
+    if not data.treatment_notes or not data.treatment_notes.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="A nota de auditoria é obrigatória. Informe uma justificativa para a alteração do tratamento."
+        )
+
+    changed_by = current_user.full_name or current_user.username
+    now = datetime.now(timezone.utc)
+
+    # Atualiza a vulnerabilidade
+    v.treatment_status = data.treatment_status
+    v.treatment_notes = data.treatment_notes.strip()
+    v.treated_by_username = changed_by
+    v.treated_at = now
+
+    # Registra entrada no histórico de auditoria
+    history_entry = models.VulnerabilityTreatmentHistory(
+        vulnerability_id=v.id,
+        treatment_status=data.treatment_status,
+        treatment_notes=data.treatment_notes.strip(),
+        changed_by_username=changed_by,
+        changed_at=now
+    )
+    db.add(history_entry)
+
+    db.commit()
+    db.refresh(v)
+    return format_vuln_out(v, get_ignored_ids_set(db))
+
+
+@router.get("/{vuln_id}/treatment-history", response_model=List[schemas.TreatmentHistoryOut])
+def get_treatment_history(
+    vuln_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Retorna o histórico completo de alterações de tratamento de uma vulnerabilidade (ISO 27001).
+    Ordenado da alteração mais recente para a mais antiga.
+    """
+    v = db.query(models.Vulnerability).filter(models.Vulnerability.id == vuln_id).first()
+    if not v:
+        raise HTTPException(status_code=404, detail="Vulnerabilidade não encontrada.")
+
+    check_user_group_access(db, current_user, v.asset_group_id, action="view")
+
+    history = (
+        db.query(models.VulnerabilityTreatmentHistory)
+        .filter(models.VulnerabilityTreatmentHistory.vulnerability_id == vuln_id)
+        .order_by(models.VulnerabilityTreatmentHistory.changed_at.desc())
+        .all()
+    )
+    return history
+
+@router.post("/bulk-treatment", response_model=schemas.BulkTreatmentResponse)
+def bulk_update_vulnerability_treatment(
+    data: schemas.BulkVulnerabilityTreatmentUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_analyst_or_admin)
+):
+    """
+    Atualiza o status de tratamento de múltiplas vulnerabilidades em massa (ISO 27001),
+    registrando auditoria de QUEM realizou a tratativa e QUANDO em todos os registros.
+    A nota de auditoria é obrigatória. Cada vulnerabilidade recebe um registro no histórico.
+    """
+    if not data.vulnerability_ids:
+        raise HTTPException(status_code=400, detail="Nenhuma vulnerabilidade selecionada para atualização.")
+
+    # Nota obrigatória
+    if not data.treatment_notes or not data.treatment_notes.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="A nota de auditoria é obrigatória. Informe uma justificativa para a alteração em lote."
+        )
+
+    # Verifica permissão para cada grupo de ativos envolvido
+    distinct_group_ids = [
+        r[0] for r in db.query(models.Vulnerability.asset_group_id).filter(
+            models.Vulnerability.id.in_(data.vulnerability_ids)
+        ).distinct().all()
+    ]
+    for gid in distinct_group_ids:
+        check_user_group_access(db, current_user, gid, action="treat")
+
+    changed_by = current_user.full_name or current_user.username
+    now = datetime.now(timezone.utc)
+    notes_clean = data.treatment_notes.strip()
+
+    # Atualiza em massa os campos da vulnerabilidade
+    affected = db.query(models.Vulnerability).filter(
+        models.Vulnerability.id.in_(data.vulnerability_ids)
+    ).update(
+        {
+            "treatment_status": data.treatment_status,
+            "treatment_notes": notes_clean,
+            "treated_by_username": changed_by,
+            "treated_at": now
+        },
+        synchronize_session=False
+    )
+
+    # Registra histórico individual para cada vulnerabilidade
+    history_entries = [
+        models.VulnerabilityTreatmentHistory(
+            vulnerability_id=vid,
+            treatment_status=data.treatment_status,
+            treatment_notes=notes_clean,
+            changed_by_username=changed_by,
+            changed_at=now
+        )
+        for vid in data.vulnerability_ids
+    ]
+    db.bulk_save_objects(history_entries)
+
+    db.commit()
+
+    return schemas.BulkTreatmentResponse(
+        updated_count=affected,
+        message=f"{affected} vulnerabilidades atualizadas com sucesso para status '{data.treatment_status}'."
+    )
+
+@router.get("/hosts/{host_id}", response_model=schemas.HostOut)
+def get_host_details(
+    host_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Obtém os detalhes de um Host e o resumo de suas vulnerabilidades."""
+    h = db.query(models.Host).filter(models.Host.id == host_id).first()
+    if not h:
+        raise HTTPException(status_code=404, detail="Host não encontrado.")
+    check_user_group_access(db, current_user, h.asset_group_id, action="view")
+    out = schemas.HostOut.model_validate(h)
+    out.asset_group_name = h.asset_group.name if h.asset_group else ""
+    return out
