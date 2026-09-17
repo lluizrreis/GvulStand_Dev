@@ -17,7 +17,8 @@ from app.api import (
     routes_vulnerabilities,
     routes_ldap,
     routes_reports,
-    routes_parameters
+    routes_parameters,
+    routes_action_plans
 )
 
 @asynccontextmanager
@@ -55,6 +56,8 @@ app.include_router(routes_comparative.router, prefix=api_prefix)
 app.include_router(routes_vulnerabilities.router, prefix=api_prefix)
 app.include_router(routes_reports.router, prefix=api_prefix)
 app.include_router(routes_parameters.router, prefix=api_prefix)
+app.include_router(routes_action_plans.router, prefix=api_prefix)
+app.include_router(routes_action_plans.router, prefix="/api/v1")
 
 @app.get(f"{api_prefix}/health", tags=["Health"])
 def health_check():

@@ -29,7 +29,12 @@ const App = {
     inventoryPageSize: 50,
     inventoryTotalPages: 1,
     inventoryTotalCount: 0,
-    inventoryCurrentHostIp: null
+    inventoryCurrentHostIp: null,
+    actionPlansList: [],
+    actionPlansStats: null,
+    actionPlansView: 'list',
+    actionPlansAssignees: [],
+    currentActionPlan: null
   },
 
   async init() {
@@ -514,6 +519,9 @@ const App = {
         break;
       case 'inventory':
         this.loadInventoryData();
+        break;
+      case 'actionPlans':
+        this.loadActionPlansData();
         break;
       case 'top100':
         this.loadTop100Data();
@@ -3452,6 +3460,7 @@ const App = {
 
     try {
       const v = await API.getVulnerability(vulnId);
+      this.state.currentVulnModalData = v;
       document.getElementById('modal-vuln-id').value = v.id;
 
       if (titleEl) {
@@ -3989,6 +3998,7 @@ const App = {
 
     try {
       const host = await API.getHostDetails(hostId);
+      this.state.inventoryCurrentHost = host;
       this.state.inventoryCurrentHostIp = host.ip_address || '';
       document.getElementById('host-modal-ip').textContent = host.ip_address || '-';
       document.getElementById('host-modal-name').textContent = host.hostname || host.netbios_name || 'Sem hostname';
@@ -4574,6 +4584,1074 @@ const App = {
     if (s === 'medium') return '<span class="badge-medium px-2 py-0.5 rounded text-xs font-bold">Medium</span>';
     if (s === 'low') return '<span class="badge-low px-2 py-0.5 rounded text-xs font-bold">Low</span>';
     return `<span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">${this.escapeHtml(sev || 'Info')}</span>`;
+  },
+
+  // =========================================================================
+  // MÓDULO GERENCIADOR DE PLANOS DE AÇÃO (PDCA & WBS)
+  // =========================================================================
+
+  async loadActionPlansData() {
+    const tbody = document.getElementById('action-plans-table-body');
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400">
+        <div class="inline-flex items-center space-x-2">
+          <i data-lucide="loader-2" class="w-5 h-5 animate-spin text-indigo-500"></i>
+          <span>Carregando planos de ação...</span>
+        </div>
+      </td></tr>`;
+      this.refreshIcons();
+    }
+
+    const assetGroupId = this.state.selectedAssetGroupId || '';
+    const search = document.getElementById('action-filter-search')?.value.trim() || '';
+    const status = document.getElementById('action-filter-status')?.value || '';
+    const priority = document.getElementById('action-filter-priority')?.value || '';
+    const scopeType = document.getElementById('action-filter-scope')?.value || '';
+
+    try {
+      const [stats, plans] = await Promise.all([
+        API.getActionPlanStats({ asset_group_id: assetGroupId }),
+        API.listActionPlans({
+          asset_group_id: assetGroupId,
+          search,
+          status,
+          priority,
+          scope_type: scopeType
+        })
+      ]);
+
+      this.state.actionPlansStats = stats || null;
+      this.state.actionPlansList = plans || [];
+
+      // Update KPI counters
+      const kpiTotal = document.getElementById('kpi-action-total');
+      if (kpiTotal) kpiTotal.textContent = (stats?.total_plans || 0).toLocaleString();
+
+      const kpiProg = document.getElementById('kpi-action-in-progress');
+      if (kpiProg) kpiProg.textContent = (stats?.in_progress_count || 0).toLocaleString();
+
+      const kpiComp = document.getElementById('kpi-action-completed');
+      if (kpiComp) kpiComp.textContent = (stats?.completed_count || 0).toLocaleString();
+
+      const kpiOverdue = document.getElementById('kpi-action-overdue');
+      if (kpiOverdue) {
+        kpiOverdue.textContent = (stats?.overdue_count || 0).toLocaleString();
+        if ((stats?.overdue_count || 0) > 0) {
+          kpiOverdue.className = 'text-2xl sm:text-3xl font-extrabold tracking-tight text-rose-600 dark:text-rose-400 mt-2 font-mono';
+        } else {
+          kpiOverdue.className = 'text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-700 dark:text-slate-300 mt-2 font-mono';
+        }
+      }
+
+      const kpiOverall = document.getElementById('kpi-action-progress');
+      if (kpiOverall) kpiOverall.textContent = `${(stats?.overall_progress_percent || 0).toFixed(1)}%`;
+
+      const kpiRatio = document.getElementById('kpi-action-tasks-ratio');
+      if (kpiRatio) kpiRatio.textContent = `${stats?.completed_tasks || 0}/${stats?.total_tasks || 0} etapas concluídas`;
+
+      const countBadge = document.getElementById('action-plans-count-badge');
+      if (countBadge) countBadge.textContent = `${stats?.total_plans || 0} Planos`;
+
+      // Render view
+      if (this.state.actionPlansView === 'kanban') {
+        this.renderActionPlansKanban();
+      } else {
+        this.renderActionPlansList();
+      }
+    } catch (err) {
+      console.error('Erro ao carregar Planos de Ação:', err);
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-rose-500 font-semibold">
+          Erro ao carregar planos de ação: ${this.escapeHtml(err.message)}
+        </td></tr>`;
+      }
+    }
+  },
+
+  setActionPlansView(viewMode) {
+    this.state.actionPlansView = viewMode;
+    const btnList = document.getElementById('btn-action-view-list');
+    const btnKanban = document.getElementById('btn-action-view-kanban');
+    const containerList = document.getElementById('action-plans-list-container');
+    const containerKanban = document.getElementById('action-plans-kanban-container');
+
+    if (viewMode === 'kanban') {
+      if (btnKanban) btnKanban.className = 'px-3 py-1.5 rounded-lg font-semibold flex items-center space-x-1.5 transition cursor-pointer bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-xs';
+      if (btnList) btnList.className = 'px-3 py-1.5 rounded-lg font-medium flex items-center space-x-1.5 transition cursor-pointer text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+      if (containerList) containerList.classList.add('hidden');
+      if (containerKanban) containerKanban.classList.remove('hidden');
+      this.renderActionPlansKanban();
+    } else {
+      if (btnList) btnList.className = 'px-3 py-1.5 rounded-lg font-semibold flex items-center space-x-1.5 transition cursor-pointer bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-xs';
+      if (btnKanban) btnKanban.className = 'px-3 py-1.5 rounded-lg font-medium flex items-center space-x-1.5 transition cursor-pointer text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+      if (containerKanban) containerKanban.classList.add('hidden');
+      if (containerList) containerList.classList.remove('hidden');
+      this.renderActionPlansList();
+    }
+    this.refreshIcons();
+  },
+
+  applyActionPlansFilters() {
+    this.loadActionPlansData();
+  },
+
+  clearActionPlansFilters() {
+    const search = document.getElementById('action-filter-search');
+    if (search) search.value = '';
+    const st = document.getElementById('action-filter-status');
+    if (st) st.value = '';
+    const prio = document.getElementById('action-filter-priority');
+    if (prio) prio.value = '';
+    const sc = document.getElementById('action-filter-scope');
+    if (sc) sc.value = '';
+    this.loadActionPlansData();
+  },
+
+  getActionPlanPriorityBadge(priority) {
+    const p = String(priority || '').toUpperCase();
+    if (p === 'CRITICAL') return '<span class="badge-critical px-2 py-0.5 rounded text-[11px] font-bold">Crítica</span>';
+    if (p === 'HIGH') return '<span class="badge-high px-2 py-0.5 rounded text-[11px] font-bold">Alta</span>';
+    if (p === 'MEDIUM') return '<span class="badge-medium px-2 py-0.5 rounded text-[11px] font-bold">Média</span>';
+    if (p === 'LOW') return '<span class="badge-low px-2 py-0.5 rounded text-[11px] font-bold">Baixa</span>';
+    return `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">${this.escapeHtml(priority)}</span>`;
+  },
+
+  getActionPlanStatusBadge(status) {
+    const s = String(status || '').toUpperCase();
+    if (s === 'PLANNED') return '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">Planejado</span>';
+    if (s === 'IN_PROGRESS') return '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">Em Andamento</span>';
+    if (s === 'BLOCKED') return '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Bloqueado</span>';
+    if (s === 'COMPLETED') return '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Concluído</span>';
+    if (s === 'DRAFT') return '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">Rascunho</span>';
+    if (s === 'CANCELLED') return '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">Cancelado</span>';
+    return `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">${this.escapeHtml(status)}</span>`;
+  },
+
+  getActionTaskStatusBadge(status) {
+    const s = String(status || '').toUpperCase();
+    if (s === 'TODO') return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">A Fazer</span>';
+    if (s === 'DOING') return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">Em Execução</span>';
+    if (s === 'REVIEW') return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">Revisão</span>';
+    if (s === 'DONE') return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Concluído</span>';
+    if (s === 'BLOCKED') return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Bloqueado</span>';
+    return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">${this.escapeHtml(status)}</span>`;
+  },
+
+  getActionPlanScopeBadge(scopeType, targetInfo, groupName) {
+    const sc = String(scopeType || '').toUpperCase();
+    let label = 'Customizado';
+    let icon = 'layers';
+    let color = 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700';
+    if (sc === 'HOST') {
+      label = 'Host';
+      icon = 'server';
+      color = 'bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 border border-sky-200 dark:border-sky-800';
+    } else if (sc === 'VULNERABILITY') {
+      label = 'Vulnerabilidade';
+      icon = 'shield-alert';
+      color = 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-800';
+    } else if (sc === 'GROUP') {
+      label = 'Grupo de Ativos';
+      icon = 'folder-tree';
+      color = 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800';
+    }
+    return `<div class="space-y-1">
+      <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${color}">
+        <i data-lucide="${icon}" class="w-3 h-3"></i>
+        <span>${label}</span>
+      </span>
+      ${targetInfo ? `<div class="text-[11px] font-mono text-slate-700 dark:text-slate-200 truncate max-w-[200px]" title="${this.escapeHtml(targetInfo)}">${this.escapeHtml(targetInfo)}</div>` : ''}
+      ${groupName ? `<div class="text-[10px] text-teal-700 dark:text-teal-400 font-medium truncate max-w-[200px]" title="Grupo: ${this.escapeHtml(groupName)}"><i data-lucide="folder-tree" class="w-3 h-3 inline mr-0.5 text-teal-600"></i>${this.escapeHtml(groupName)}</div>` : ''}
+    </div>`;
+  },
+
+  renderActionPlansList() {
+    const tbody = document.getElementById('action-plans-table-body');
+    const emptyState = document.getElementById('action-plans-empty-state');
+    if (!tbody) return;
+
+    const plans = this.state.actionPlansList || [];
+    if (plans.length === 0) {
+      tbody.innerHTML = '';
+      if (emptyState) emptyState.classList.remove('hidden');
+      return;
+    }
+
+    if (emptyState) emptyState.classList.add('hidden');
+
+    tbody.innerHTML = plans.map(p => {
+      let targetInfo = '';
+      if (p.scope_type === 'HOST') {
+        targetInfo = p.target_host_ip ? `${p.target_host_ip}${p.target_host_name ? ` (${p.target_host_name})` : ''}` : 'Host não especificado';
+      } else if (p.scope_type === 'VULNERABILITY') {
+        targetInfo = p.target_plugin_id ? `Plugin #${p.target_plugin_id}` : 'Plugin não especificado';
+      } else if (p.scope_type === 'GROUP') {
+        targetInfo = p.asset_group_name || 'Grupo Global';
+      } else {
+        targetInfo = p.asset_group_name || 'Geral';
+      }
+
+      const dueStr = p.due_date ? new Date(p.due_date).toLocaleDateString('pt-BR') : '-';
+      const overdueHtml = p.is_overdue
+        ? '<span class="inline-block ml-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-rose-500 text-white animate-pulse">Atrasado</span>'
+        : '';
+
+      const pct = p.progress_percent || 0;
+      const barColor = pct === 100 ? 'bg-emerald-500' : (pct > 0 ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700');
+
+      return `
+        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+          <td class="text-center font-mono font-bold text-slate-500 dark:text-slate-400">#${p.id}</td>
+          <td class="max-w-xs">
+            <div class="font-bold text-slate-900 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition line-clamp-1" onclick="App.openActionPlanDetail(${p.id})" title="${this.escapeHtml(p.title)}">
+              ${this.escapeHtml(p.title)}
+            </div>
+            ${p.description ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">${this.escapeHtml(p.description)}</div>` : ''}
+          </td>
+          <td>
+            ${this.getActionPlanScopeBadge(p.scope_type, targetInfo, p.asset_group_name)}
+          </td>
+          <td class="text-center">
+            ${this.getActionPlanPriorityBadge(p.priority)}
+          </td>
+          <td class="text-center">
+            ${this.getActionPlanStatusBadge(p.status)}
+          </td>
+          <td>
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="font-mono font-bold text-slate-700 dark:text-slate-300">${pct.toFixed(0)}%</span>
+                <span class="text-slate-400 text-[10px]">${p.completed_tasks}/${p.total_tasks} etapas</span>
+              </div>
+              <div class="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                <div class="${barColor} h-full rounded-full transition-all duration-300" style="width: ${pct}%"></div>
+              </div>
+            </div>
+          </td>
+          <td class="font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
+            ${dueStr} ${overdueHtml}
+          </td>
+          <td class="text-slate-700 dark:text-slate-300 whitespace-nowrap">
+            <div class="flex items-center space-x-1.5">
+              <div class="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-[10px] font-bold">
+                ${this.escapeHtml((p.owner_user_name || 'U').charAt(0).toUpperCase())}
+              </div>
+              <span class="truncate max-w-[120px]" title="${this.escapeHtml(p.owner_user_name || '-')}">${this.escapeHtml(p.owner_user_name || '-')}</span>
+            </div>
+          </td>
+          <td class="text-right whitespace-nowrap">
+            <div class="flex items-center justify-end space-x-1">
+              <button onclick="App.openActionPlanDetail(${p.id})" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 flex items-center space-x-1 cursor-pointer transition shadow-xs" title="Gerenciar Etapas e Detalhes">
+                <i data-lucide="list-todo" class="w-3.5 h-3.5"></i>
+                <span>Etapas</span>
+              </button>
+              <button onclick="App.openEditPlanModal(${p.id})" class="p-1 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition" title="Editar Metadados do Plano">
+                <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+              </button>
+              <button onclick="App.handleDeletePlan(${p.id})" class="p-1 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition" title="Excluir Plano">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    this.refreshIcons();
+  },
+
+  renderActionPlansKanban() {
+    const plans = this.state.actionPlansList || [];
+    const groups = {
+      planned: [],
+      inprogress: [],
+      blocked: [],
+      completed: [],
+      other: []
+    };
+
+    plans.forEach(p => {
+      const s = (p.status || '').toUpperCase();
+      if (s === 'PLANNED' || s === 'DRAFT') groups.planned.push(p);
+      else if (s === 'IN_PROGRESS') groups.inprogress.push(p);
+      else if (s === 'BLOCKED') groups.blocked.push(p);
+      else if (s === 'COMPLETED') groups.completed.push(p);
+      else groups.other.push(p);
+    });
+
+    const setCnt = (id, count) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = count;
+    };
+    setCnt('kanban-count-planned', groups.planned.length);
+    setCnt('kanban-count-inprogress', groups.inprogress.length);
+    setCnt('kanban-count-blocked', groups.blocked.length);
+    setCnt('kanban-count-completed', groups.completed.length);
+    setCnt('kanban-count-other', groups.other.length);
+
+    const renderCard = (p) => {
+      const dueStr = p.due_date ? new Date(p.due_date).toLocaleDateString('pt-BR') : '-';
+      const pct = p.progress_percent || 0;
+      const barColor = pct === 100 ? 'bg-emerald-500' : 'bg-indigo-600';
+      return `
+        <div onclick="App.openActionPlanDetail(${p.id})" class="p-3.5 rounded-xl bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-800/80 transition cursor-pointer space-y-2.5">
+          <div class="flex items-center justify-between gap-1.5">
+            ${this.getActionPlanPriorityBadge(p.priority)}
+            <span class="font-mono text-[10px] text-slate-400">#${p.id}</span>
+          </div>
+          <h5 class="font-bold text-xs text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug">
+            ${this.escapeHtml(p.title)}
+          </h5>
+          <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+            <i data-lucide="tag" class="w-3 h-3 inline mr-1 text-slate-400"></i>
+            <span>${this.escapeHtml(p.scope_type)}: ${this.escapeHtml(p.target_host_ip || p.target_plugin_id || p.asset_group_name || 'Geral')}</span>
+          </div>
+          ${p.asset_group_name ? `
+            <div class="text-[10px] text-teal-600 dark:text-teal-400 font-medium truncate" title="Grupo: ${this.escapeHtml(p.asset_group_name)}">
+              <i data-lucide="folder-tree" class="w-3 h-3 inline mr-0.5"></i>
+              ${this.escapeHtml(p.asset_group_name)}
+            </div>
+          ` : ''}
+          <div class="space-y-1 pt-1 border-t border-slate-100 dark:border-slate-800/60">
+            <div class="flex items-center justify-between text-[10px]">
+              <span class="text-slate-400">${p.completed_tasks}/${p.total_tasks} etapas</span>
+              <span class="font-bold font-mono text-slate-700 dark:text-slate-300">${pct.toFixed(0)}%</span>
+            </div>
+            <div class="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div class="${barColor} h-full rounded-full" style="width: ${pct}%"></div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between text-[10px] pt-1 text-slate-400">
+            <span class="${p.is_overdue ? 'text-rose-500 font-bold' : ''}">
+              <i data-lucide="calendar" class="w-3 h-3 inline mr-0.5"></i>
+              ${dueStr} ${p.is_overdue ? '(Atrasado)' : ''}
+            </span>
+            <span class="truncate max-w-[80px]" title="${this.escapeHtml(p.owner_user_name || '-')}">
+              ${this.escapeHtml(p.owner_user_name || '-')}
+            </span>
+          </div>
+        </div>
+      `;
+    };
+
+    ['planned', 'inprogress', 'blocked', 'completed', 'other'].forEach(col => {
+      const el = document.getElementById(`kanban-col-${col}`);
+      if (el) {
+        if (groups[col].length === 0) {
+          el.innerHTML = '<div class="text-center py-8 text-xs text-slate-400 italic">Nenhum plano</div>';
+        } else {
+          el.innerHTML = groups[col].map(renderCard).join('');
+        }
+      }
+    });
+
+    this.refreshIcons();
+  },
+
+  async populateActionPlanFormSelectors() {
+    // 1. Assignees
+    try {
+      if (!this.state.actionPlansAssignees || this.state.actionPlansAssignees.length === 0) {
+        this.state.actionPlansAssignees = await API.getActionPlanAssignees();
+      }
+      const ownerSelect = document.getElementById('plan-form-owner');
+      const taskAssigneeSelect = document.getElementById('task-form-assignee');
+      
+      const currentUserId = this.state.user?.id;
+      const optionsHtml = (this.state.actionPlansAssignees || []).map(u => `
+        <option value="${u.id}" ${u.id === currentUserId ? 'selected' : ''}>
+          ${this.escapeHtml(u.full_name || u.username)} (@${this.escapeHtml(u.username)} - ${this.escapeHtml(u.role)})
+        </option>
+      `).join('');
+
+      if (ownerSelect) ownerSelect.innerHTML = optionsHtml;
+      if (taskAssigneeSelect) taskAssigneeSelect.innerHTML = `<option value="">Mesmo responsável do Plano</option>` + optionsHtml;
+    } catch (e) {
+      console.error('Erro ao carregar lista de responsáveis:', e);
+    }
+
+    // 2. Asset Groups (hierárquico multinível)
+    const groupSelect = document.getElementById('plan-form-asset-group');
+    if (groupSelect) {
+      if (!this.state.assetGroups || this.state.assetGroups.length === 0) {
+        try {
+          this.state.assetGroups = await API.listAssetGroups();
+        } catch (e) {
+          console.warn('Erro ao carregar grupos de ativos:', e);
+        }
+      }
+      groupSelect.innerHTML = `<option value="">Nenhum (Global)</option>` + this.getHierarchicalGroupOptions(false);
+      if (this.state.selectedAssetGroupId) {
+        groupSelect.value = String(this.state.selectedAssetGroupId);
+      }
+    }
+
+    // 3. Hosts for target picker
+    const hostSelect = document.getElementById('plan-form-target-host');
+    if (hostSelect) {
+      try {
+        const targetGroup = groupSelect?.value || this.state.selectedAssetGroupId || '';
+        const hosts = await API.getUniqueHosts(targetGroup);
+        hostSelect.innerHTML = `<option value="">Selecione um host...</option>` + (hosts || []).map(h => {
+          const val = (h.id != null) ? h.id : (h.ip || h.ip_address);
+          const displayIp = h.ip || h.ip_address || '';
+          const displayName = h.hostname ? ` (${h.hostname})` : '';
+          return `<option value="${val}">${this.escapeHtml(displayIp)}${this.escapeHtml(displayName)}</option>`;
+        }).join('');
+      } catch (e) {
+        console.error('Erro ao carregar lista de hosts:', e);
+      }
+    }
+  },
+
+  async handlePlanFormAssetGroupChange() {
+    const selectedGroup = document.getElementById('plan-form-asset-group')?.value || '';
+    const hostSelect = document.getElementById('plan-form-target-host');
+    if (hostSelect) {
+      try {
+        const hosts = await API.getUniqueHosts(selectedGroup);
+        const currentVal = hostSelect.value;
+        hostSelect.innerHTML = `<option value="">Selecione um host...</option>` + (hosts || []).map(h => {
+          const val = (h.id != null) ? h.id : (h.ip || h.ip_address);
+          const displayIp = h.ip || h.ip_address || '';
+          const displayName = h.hostname ? ` (${h.hostname})` : '';
+          return `<option value="${val}">${this.escapeHtml(displayIp)}${this.escapeHtml(displayName)}</option>`;
+        }).join('');
+        if (currentVal) hostSelect.value = currentVal;
+      } catch (e) {
+        console.error('Erro ao atualizar lista de hosts pelo grupo:', e);
+      }
+    }
+  },
+
+  handleScopeTypeChange() {
+    const scopeType = document.getElementById('plan-form-scope-type')?.value || 'HOST';
+    const hostWrapper = document.getElementById('plan-target-host-wrapper');
+    const pluginWrapper = document.getElementById('plan-target-plugin-wrapper');
+    const autolinkWrapper = document.getElementById('plan-form-autolink-wrapper');
+
+    if (scopeType === 'HOST') {
+      if (hostWrapper) hostWrapper.classList.remove('hidden');
+      if (pluginWrapper) pluginWrapper.classList.add('hidden');
+      if (autolinkWrapper) autolinkWrapper.classList.remove('hidden');
+    } else if (scopeType === 'VULNERABILITY') {
+      if (hostWrapper) hostWrapper.classList.add('hidden');
+      if (pluginWrapper) pluginWrapper.classList.remove('hidden');
+      if (autolinkWrapper) autolinkWrapper.classList.remove('hidden');
+    } else {
+      if (hostWrapper) hostWrapper.classList.add('hidden');
+      if (pluginWrapper) pluginWrapper.classList.add('hidden');
+      if (autolinkWrapper) autolinkWrapper.classList.add('hidden');
+    }
+  },
+
+  async openCreatePlanModal(prefill = {}) {
+    await this.populateActionPlanFormSelectors();
+
+    const modal = document.getElementById('action-plan-modal');
+    if (!modal) return;
+
+    document.getElementById('action-plan-modal-title').innerHTML = `
+      <i data-lucide="clipboard-check" class="w-5 h-5 text-indigo-600 dark:text-indigo-400"></i>
+      <span>Novo Plano de Ação</span>
+    `;
+    document.getElementById('action-plan-id').value = '';
+    document.getElementById('plan-form-title').value = prefill.title || '';
+    document.getElementById('plan-form-description').value = prefill.description || '';
+    document.getElementById('plan-form-priority').value = prefill.priority || 'HIGH';
+    document.getElementById('plan-form-status').value = prefill.status || 'PLANNED';
+    document.getElementById('plan-form-due-date').value = prefill.due_date ? prefill.due_date.substring(0, 10) : '';
+    document.getElementById('plan-form-autolink').checked = true;
+
+    if (prefill.asset_group_id) {
+      document.getElementById('plan-form-asset-group').value = String(prefill.asset_group_id);
+    }
+    if (prefill.scope_type) {
+      document.getElementById('plan-form-scope-type').value = prefill.scope_type;
+    } else {
+      document.getElementById('plan-form-scope-type').value = 'HOST';
+    }
+    this.handleScopeTypeChange();
+
+    const hostSelect = document.getElementById('plan-form-target-host');
+    if (hostSelect) {
+      const targetId = prefill.target_host_id != null ? String(prefill.target_host_id) : '';
+      const targetIp = prefill.target_host_ip ? String(prefill.target_host_ip) : '';
+      let matched = false;
+
+      if (targetId) {
+        for (let i = 0; i < hostSelect.options.length; i++) {
+          if (hostSelect.options[i].value === targetId) {
+            hostSelect.value = targetId;
+            matched = true;
+            break;
+          }
+        }
+      }
+      if (!matched && targetIp) {
+        for (let i = 0; i < hostSelect.options.length; i++) {
+          const optVal = hostSelect.options[i].value;
+          const optText = hostSelect.options[i].textContent || '';
+          if (optVal === targetIp || optText.includes(targetIp)) {
+            hostSelect.selectedIndex = i;
+            matched = true;
+            break;
+          }
+        }
+      }
+      if (!matched && (targetId || targetIp)) {
+        const opt = document.createElement('option');
+        opt.value = targetId || targetIp;
+        opt.textContent = targetIp || `Host #${targetId}`;
+        hostSelect.appendChild(opt);
+        hostSelect.value = opt.value;
+      }
+    }
+
+    if (prefill.target_plugin_id) {
+      document.getElementById('plan-form-target-plugin').value = String(prefill.target_plugin_id);
+    }
+
+    const autolinkWrapper = document.getElementById('plan-form-autolink-wrapper');
+    if (autolinkWrapper && (prefill.scope_type === 'HOST' || prefill.scope_type === 'VULNERABILITY' || !prefill.scope_type)) {
+      autolinkWrapper.classList.remove('hidden');
+    }
+
+    const errBox = document.getElementById('action-plan-form-error');
+    if (errBox) errBox.classList.add('hidden');
+
+    modal.classList.remove('hidden');
+    this.refreshIcons();
+  },
+
+  async openCreatePlanModalFromHost() {
+    const host = this.state.inventoryCurrentHost;
+    const ip = host?.ip_address || host?.ip || document.getElementById('host-modal-ip')?.textContent?.trim() || '';
+    const name = host?.hostname || document.getElementById('host-modal-name')?.textContent?.trim() || '';
+    
+    this.closeHostModal();
+    this.navigate('actionPlans');
+    await this.openCreatePlanModal({
+      scope_type: 'HOST',
+      target_host_id: host?.id || null,
+      target_host_ip: ip || null,
+      asset_group_id: host?.asset_group_id || null,
+      title: `Plano de Remediação - Host ${ip}${name && name !== 'Sem hostname' && name !== '-' ? ` (${name})` : ''}`,
+      description: `Iniciativa de remediação e conformidade cibernética para o ativo ${ip}.`,
+      priority: 'HIGH'
+    });
+  },
+
+  async openCreatePlanModalFromVuln() {
+    const v = this.state.currentVulnModalData;
+    const pluginId = v?.plugin_id || '';
+    const title = v?.plugin_name || document.getElementById('modal-vuln-title')?.textContent?.trim() || 'Vulnerabilidade';
+    
+    this.closeVulnDetailsModal();
+    this.navigate('actionPlans');
+    await this.openCreatePlanModal({
+      scope_type: 'VULNERABILITY',
+      target_plugin_id: pluginId,
+      target_host_id: v?.host_id || null,
+      target_host_ip: v?.host_ip || null,
+      asset_group_id: v?.asset_group_id || null,
+      title: `Plano de Remediação: ${title.substring(0, 100)}`,
+      description: `Remediação técnica da vulnerabilidade (Plugin ID: ${pluginId}).`,
+      priority: (v?.severity || 'HIGH').toUpperCase()
+    });
+  },
+
+  async openCreatePlanModalFromPlugin() {
+    const pluginId = document.getElementById('plugin-modal-id')?.textContent?.trim();
+    const title = document.getElementById('plugin-modal-title')?.textContent?.trim() || 'Plugin Nessus';
+    
+    this.closePluginSolutionModal();
+    this.navigate('actionPlans');
+    await this.openCreatePlanModal({
+      scope_type: 'VULNERABILITY',
+      target_plugin_id: pluginId,
+      title: `Plano de Correção: ${title.substring(0, 100)}`,
+      description: `Execução do plano de correção técnica para o Plugin ID ${pluginId}.`,
+      priority: 'HIGH'
+    });
+  },
+
+  async openEditPlanModal(planId) {
+    await this.populateActionPlanFormSelectors();
+    const modal = document.getElementById('action-plan-modal');
+    if (!modal) return;
+
+    try {
+      const p = await API.getActionPlan(planId);
+      document.getElementById('action-plan-modal-title').innerHTML = `
+        <i data-lucide="edit-3" class="w-5 h-5 text-indigo-600 dark:text-indigo-400"></i>
+        <span>Editar Plano de Ação #${p.id}</span>
+      `;
+      document.getElementById('action-plan-id').value = p.id;
+      document.getElementById('plan-form-title').value = p.title || '';
+      document.getElementById('plan-form-description').value = p.description || '';
+      document.getElementById('plan-form-scope-type').value = p.scope_type || 'HOST';
+      this.handleScopeTypeChange();
+
+      if (p.asset_group_id) {
+        document.getElementById('plan-form-asset-group').value = String(p.asset_group_id);
+      }
+      if (p.target_host_id) {
+        const hostSelect = document.getElementById('plan-form-target-host');
+        if (hostSelect) {
+          hostSelect.value = String(p.target_host_id);
+          if (!hostSelect.value && p.target_host_ip) {
+            const opt = document.createElement('option');
+            opt.value = String(p.target_host_id);
+            opt.textContent = p.target_host_ip;
+            hostSelect.appendChild(opt);
+            hostSelect.value = opt.value;
+          }
+        }
+      }
+      if (p.target_plugin_id) {
+        document.getElementById('plan-form-target-plugin').value = String(p.target_plugin_id);
+      }
+
+      document.getElementById('plan-form-priority').value = p.priority || 'HIGH';
+      document.getElementById('plan-form-status').value = p.status || 'PLANNED';
+      if (p.owner_user_id) {
+        document.getElementById('plan-form-owner').value = String(p.owner_user_id);
+      }
+      document.getElementById('plan-form-due-date').value = p.due_date ? p.due_date.substring(0, 10) : '';
+
+      // Disable autolink on edit
+      const autolinkWrapper = document.getElementById('plan-form-autolink-wrapper');
+      if (autolinkWrapper) autolinkWrapper.classList.add('hidden');
+
+      const errBox = document.getElementById('action-plan-form-error');
+      if (errBox) errBox.classList.add('hidden');
+
+      modal.classList.remove('hidden');
+      this.refreshIcons();
+    } catch (err) {
+      alert(`Erro ao abrir plano para edição: ${err.message}`);
+    }
+  },
+
+  closeActionPlanModal() {
+    const modal = document.getElementById('action-plan-modal');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  async handleSaveActionPlan(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-save-action-plan');
+    const errBox = document.getElementById('action-plan-form-error');
+    if (errBox) errBox.classList.add('hidden');
+
+    const planId = document.getElementById('action-plan-id')?.value;
+    const title = document.getElementById('plan-form-title')?.value.trim();
+    const description = document.getElementById('plan-form-description')?.value.trim();
+    const scopeType = document.getElementById('plan-form-scope-type')?.value || 'HOST';
+    const assetGroupId = document.getElementById('plan-form-asset-group')?.value;
+    const targetHostVal = document.getElementById('plan-form-target-host')?.value;
+    const targetPluginId = document.getElementById('plan-form-target-plugin')?.value.trim();
+    const priority = document.getElementById('plan-form-priority')?.value || 'HIGH';
+    const status = document.getElementById('plan-form-status')?.value || 'PLANNED';
+    const ownerId = document.getElementById('plan-form-owner')?.value;
+    const dueDate = document.getElementById('plan-form-due-date')?.value;
+    const autoLink = document.getElementById('plan-form-autolink')?.checked;
+
+    if (!title) {
+      if (errBox) {
+        errBox.textContent = 'O título do plano de ação é obrigatório.';
+        errBox.classList.remove('hidden');
+      }
+      return;
+    }
+
+    let targetHostIdNum = null;
+    let targetHostIpStr = null;
+    if (scopeType === 'HOST' && targetHostVal) {
+      if (/^\d+$/.test(String(targetHostVal).trim())) {
+        targetHostIdNum = parseInt(targetHostVal, 10);
+      } else {
+        targetHostIpStr = String(targetHostVal).trim();
+      }
+    }
+
+    const payload = {
+      title,
+      description: description || null,
+      scope_type: scopeType,
+      asset_group_id: assetGroupId ? parseInt(assetGroupId, 10) : null,
+      target_host_id: targetHostIdNum,
+      target_host_ip: targetHostIpStr,
+      target_plugin_id: (scopeType === 'VULNERABILITY' && targetPluginId) ? targetPluginId : null,
+      priority,
+      status,
+      owner_user_id: ownerId ? parseInt(ownerId, 10) : null,
+      due_date: dueDate ? `${dueDate}T23:59:59` : null,
+      auto_link_vulnerabilities: planId ? false : !!autoLink
+    };
+
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Salvando...';
+    }
+
+    try {
+      if (planId) {
+        await API.updateActionPlan(parseInt(planId, 10), payload);
+      } else {
+        await API.createActionPlan(payload);
+      }
+      this.closeActionPlanModal();
+      this.loadActionPlansData();
+    } catch (err) {
+      console.error('Erro ao salvar plano de ação:', err);
+      if (errBox) {
+        errBox.textContent = `Erro ao salvar plano: ${err.message}`;
+        errBox.classList.remove('hidden');
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Salvar Plano';
+      }
+    }
+  },
+
+  async openActionPlanDetail(planId) {
+    const modal = document.getElementById('action-plan-detail-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    // Loading State
+    document.getElementById('plan-detail-title').textContent = 'Carregando plano...';
+    document.getElementById('plan-detail-tasks-list').innerHTML = `
+      <div class="text-center py-8 text-slate-400">
+        <i data-lucide="loader-2" class="w-5 h-5 animate-spin mx-auto text-indigo-500 mb-1"></i>
+        <span>Carregando etapas técnicas...</span>
+      </div>
+    `;
+    this.refreshIcons();
+
+    try {
+      const p = await API.getActionPlan(planId);
+      this.state.currentActionPlan = p;
+
+      document.getElementById('plan-detail-id-badge').textContent = `#${p.id}`;
+      document.getElementById('plan-detail-title').textContent = p.title || 'Plano sem título';
+      document.getElementById('plan-detail-scope-badge').textContent = `ESCOPO: ${p.scope_type || 'CUSTOM'}`;
+
+      // Priority badge
+      const prioBadge = document.getElementById('plan-detail-priority-badge');
+      if (prioBadge) {
+        prioBadge.innerHTML = this.getActionPlanPriorityBadge(p.priority);
+      }
+
+      // Status badge
+      const stBadge = document.getElementById('plan-detail-status-badge');
+      if (stBadge) {
+        stBadge.innerHTML = this.getActionPlanStatusBadge(p.status);
+      }
+
+      // Overdue badge
+      const odBadge = document.getElementById('plan-detail-overdue-badge');
+      if (odBadge) {
+        if (p.is_overdue) odBadge.classList.remove('hidden');
+        else odBadge.classList.add('hidden');
+      }
+
+      // Metadata
+      document.getElementById('plan-detail-group').textContent = p.asset_group_name || 'Global (Todos)';
+      
+      let targetText = '-';
+      if (p.scope_type === 'HOST') targetText = p.target_host_ip ? `${p.target_host_ip}${p.target_host_name ? ` (${p.target_host_name})` : ''}` : '-';
+      else if (p.scope_type === 'VULNERABILITY') targetText = p.target_plugin_id ? `Plugin ID #${p.target_plugin_id}` : '-';
+      else if (p.scope_type === 'GROUP') targetText = p.asset_group_name || '-';
+      document.getElementById('plan-detail-target').textContent = targetText;
+
+      document.getElementById('plan-detail-owner').textContent = p.owner_user_name || '-';
+      document.getElementById('plan-detail-due').textContent = p.due_date ? new Date(p.due_date).toLocaleDateString('pt-BR') : 'Sem prazo fixado';
+
+      // Description
+      const descEl = document.getElementById('plan-detail-description');
+      const descContainer = document.getElementById('plan-detail-description-container');
+      if (p.description) {
+        descEl.textContent = p.description;
+        descContainer.classList.remove('hidden');
+      } else {
+        descContainer.classList.add('hidden');
+      }
+
+      // Progress bar
+      const pct = p.progress_percent || 0;
+      document.getElementById('plan-detail-progress-badge').textContent = `${pct.toFixed(0)}%`;
+      document.getElementById('plan-detail-progress-bar').style.width = `${pct}%`;
+      document.getElementById('plan-detail-tasks-ratio').textContent = `${p.completed_tasks} de ${p.total_tasks} etapas concluídas`;
+      document.getElementById('plan-detail-created-info').textContent = `Criado em: ${new Date(p.created_at).toLocaleString('pt-BR')}`;
+
+      // Tasks List
+      const tasksListEl = document.getElementById('plan-detail-tasks-list');
+      const noTasksEl = document.getElementById('plan-detail-no-tasks');
+      const countEl = document.getElementById('plan-detail-tasks-count');
+      const tasks = p.tasks || [];
+
+      if (countEl) countEl.textContent = tasks.length;
+
+      if (tasks.length === 0) {
+        tasksListEl.innerHTML = '';
+        if (noTasksEl) noTasksEl.classList.remove('hidden');
+      } else {
+        if (noTasksEl) noTasksEl.classList.add('hidden');
+        tasksListEl.innerHTML = tasks.map((t, idx) => {
+          const tDue = t.due_date ? new Date(t.due_date).toLocaleDateString('pt-BR') : '-';
+          const isDone = t.status === 'DONE';
+          return `
+            <div class="p-3.5 rounded-xl border ${isDone ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-200/60 dark:border-emerald-900/40' : 'bg-slate-50 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800'} shadow-xs space-y-2">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center space-x-2 min-w-0">
+                  <span class="w-5 h-5 rounded-full flex items-center justify-center bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono text-[10px] font-bold">
+                    ${idx + 1}
+                  </span>
+                  <h5 class="font-bold text-xs text-slate-900 dark:text-slate-100 ${isDone ? 'line-through text-slate-500' : ''}">
+                    ${this.escapeHtml(t.title)}
+                  </h5>
+                </div>
+                <div class="flex items-center space-x-1.5">
+                  <!-- Quick Status Dropdown -->
+                  <select onchange="App.quickUpdateTaskStatus(${t.id}, this.value)" class="text-[11px] px-2 py-1 rounded-lg font-semibold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer">
+                    <option value="TODO" ${t.status === 'TODO' ? 'selected' : ''}>A Fazer (TODO)</option>
+                    <option value="DOING" ${t.status === 'DOING' ? 'selected' : ''}>Em Execução (DOING)</option>
+                    <option value="REVIEW" ${t.status === 'REVIEW' ? 'selected' : ''}>Em Revisão (REVIEW)</option>
+                    <option value="DONE" ${t.status === 'DONE' ? 'selected' : ''}>Concluído (DONE)</option>
+                    <option value="BLOCKED" ${t.status === 'BLOCKED' ? 'selected' : ''}>Bloqueado (BLOCKED)</option>
+                  </select>
+                  <button onclick="App.openEditTaskModal(${t.id})" class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer" title="Editar Etapa">
+                    <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                  </button>
+                  <button onclick="App.deleteTask(${t.id})" class="p-1 rounded text-rose-400 hover:text-rose-600 cursor-pointer" title="Excluir Etapa">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              </div>
+
+              ${t.description ? `<p class="text-[11px] text-slate-600 dark:text-slate-400 whitespace-pre-line">${this.escapeHtml(t.description)}</p>` : ''}
+
+              <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-slate-800/60 text-[11px] text-slate-500 dark:text-slate-400">
+                <div class="flex items-center space-x-3">
+                  <span>
+                    <i data-lucide="user" class="w-3 h-3 inline mr-1 text-slate-400"></i>
+                    <strong>${this.escapeHtml(t.assigned_user_name || 'Não atribuído')}</strong>
+                  </span>
+                  <span class="${t.is_overdue ? 'text-rose-500 font-bold' : ''}">
+                    <i data-lucide="calendar" class="w-3 h-3 inline mr-1 text-slate-400"></i>
+                    Prazo: ${tDue} ${t.is_overdue ? '(Atrasado)' : ''}
+                  </span>
+                </div>
+                ${t.vulnerabilities_count > 0 ? `
+                  <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-[10px] font-semibold">
+                    <i data-lucide="shield" class="w-3 h-3"></i>
+                    <span>${t.vulnerabilities_count} vulnerabilidades vinculadas</span>
+                  </span>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      this.refreshIcons();
+    } catch (err) {
+      console.error('Erro ao abrir detalhes do plano:', err);
+      alert(`Erro ao abrir detalhes do plano: ${err.message}`);
+    }
+  },
+
+  closeActionPlanDetailModal() {
+    const modal = document.getElementById('action-plan-detail-modal');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  editCurrentPlan() {
+    if (!this.state.currentActionPlan) return;
+    const planId = this.state.currentActionPlan.id;
+    this.closeActionPlanDetailModal();
+    this.openEditPlanModal(planId);
+  },
+
+  deleteCurrentPlan() {
+    if (!this.state.currentActionPlan) return;
+    this.handleDeletePlan(this.state.currentActionPlan.id);
+  },
+
+  async handleDeletePlan(planId) {
+    if (!confirm(`Tem certeza que deseja excluir o Plano de Ação #${planId}? Todas as suas etapas associadas serão removidas.`)) {
+      return;
+    }
+    try {
+      await API.deleteActionPlan(planId);
+      this.closeActionPlanDetailModal();
+      this.loadActionPlansData();
+    } catch (err) {
+      alert(`Erro ao excluir plano de ação: ${err.message}`);
+    }
+  },
+
+  // Task Operations
+  async openCreateTaskModal() {
+    if (!this.state.currentActionPlan) return;
+    await this.populateActionPlanFormSelectors();
+
+    const modal = document.getElementById('action-task-modal');
+    if (!modal) return;
+
+    document.getElementById('action-task-modal-title').innerHTML = `
+      <i data-lucide="list-checks" class="w-5 h-5 text-indigo-600 dark:text-indigo-400"></i>
+      <span>Nova Etapa Técnica</span>
+    `;
+    document.getElementById('action-task-id').value = '';
+    document.getElementById('action-task-plan-id').value = this.state.currentActionPlan.id;
+    document.getElementById('task-form-title').value = '';
+    document.getElementById('task-form-description').value = '';
+    document.getElementById('task-form-status').value = 'TODO';
+    document.getElementById('task-form-start-date').value = '';
+    document.getElementById('task-form-due-date').value = this.state.currentActionPlan.due_date ? this.state.currentActionPlan.due_date.substring(0, 10) : '';
+    document.getElementById('task-form-sync-vulns').checked = true;
+
+    const errBox = document.getElementById('action-task-form-error');
+    if (errBox) errBox.classList.add('hidden');
+
+    modal.classList.remove('hidden');
+    this.refreshIcons();
+  },
+
+  async openEditTaskModal(taskId) {
+    if (!this.state.currentActionPlan) return;
+    await this.populateActionPlanFormSelectors();
+
+    const task = (this.state.currentActionPlan.tasks || []).find(t => t.id === taskId);
+    if (!task) return;
+
+    const modal = document.getElementById('action-task-modal');
+    if (!modal) return;
+
+    document.getElementById('action-task-modal-title').innerHTML = `
+      <i data-lucide="edit-3" class="w-5 h-5 text-indigo-600 dark:text-indigo-400"></i>
+      <span>Editar Etapa #${task.id}</span>
+    `;
+    document.getElementById('action-task-id').value = task.id;
+    document.getElementById('action-task-plan-id').value = this.state.currentActionPlan.id;
+    document.getElementById('task-form-title').value = task.title || '';
+    document.getElementById('task-form-description').value = task.description || '';
+    document.getElementById('task-form-status').value = task.status || 'TODO';
+    if (task.assigned_user_id) {
+      document.getElementById('task-form-assignee').value = String(task.assigned_user_id);
+    }
+    document.getElementById('task-form-start-date').value = task.start_date ? task.start_date.substring(0, 10) : '';
+    document.getElementById('task-form-due-date').value = task.due_date ? task.due_date.substring(0, 10) : '';
+    document.getElementById('task-form-sync-vulns').checked = true;
+
+    const errBox = document.getElementById('action-task-form-error');
+    if (errBox) errBox.classList.add('hidden');
+
+    modal.classList.remove('hidden');
+    this.refreshIcons();
+  },
+
+  closeActionTaskModal() {
+    const modal = document.getElementById('action-task-modal');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  async handleSaveActionTask(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-save-action-task');
+    const errBox = document.getElementById('action-task-form-error');
+    if (errBox) errBox.classList.add('hidden');
+
+    const taskId = document.getElementById('action-task-id')?.value;
+    const planId = parseInt(document.getElementById('action-task-plan-id')?.value || this.state.currentActionPlan?.id);
+    const title = document.getElementById('task-form-title')?.value.trim();
+    const description = document.getElementById('task-form-description')?.value.trim();
+    const status = document.getElementById('task-form-status')?.value;
+    const assigneeId = document.getElementById('task-form-assignee')?.value;
+    const startDate = document.getElementById('task-form-start-date')?.value;
+    const dueDate = document.getElementById('task-form-due-date')?.value;
+    const syncVulns = document.getElementById('task-form-sync-vulns')?.checked;
+
+    if (!title) {
+      if (errBox) {
+        errBox.textContent = 'O título da etapa é obrigatório.';
+        errBox.classList.remove('hidden');
+      }
+      return;
+    }
+
+    const payload = {
+      title,
+      description: description || null,
+      status,
+      assigned_user_id: assigneeId ? parseInt(assigneeId) : null,
+      start_date: startDate ? `${startDate}T00:00:00` : null,
+      due_date: dueDate ? `${dueDate}T23:59:59` : null,
+      sync_vuln_treatment: !!syncVulns
+    };
+
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Salvando...';
+    }
+
+    try {
+      if (taskId) {
+        await API.updateActionTask(parseInt(taskId), payload);
+      } else {
+        await API.addActionTask(planId, payload);
+      }
+      this.closeActionTaskModal();
+      await this.openActionPlanDetail(planId);
+      this.loadActionPlansData();
+    } catch (err) {
+      console.error('Erro ao salvar etapa:', err);
+      if (errBox) {
+        errBox.textContent = `Erro ao salvar etapa: ${err.message}`;
+        errBox.classList.remove('hidden');
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Salvar Etapa';
+      }
+    }
+  },
+
+  async quickUpdateTaskStatus(taskId, status) {
+    try {
+      await API.updateActionTask(taskId, {
+        status,
+        sync_vuln_treatment: true
+      });
+      if (this.state.currentActionPlan) {
+        await this.openActionPlanDetail(this.state.currentActionPlan.id);
+      }
+      this.loadActionPlansData();
+    } catch (err) {
+      alert(`Erro ao atualizar status da etapa: ${err.message}`);
+    }
+  },
+
+  async deleteTask(taskId) {
+    if (!confirm('Deseja realmente excluir esta etapa técnica?')) {
+      return;
+    }
+    try {
+      await API.deleteActionTask(taskId);
+      if (this.state.currentActionPlan) {
+        await this.openActionPlanDetail(this.state.currentActionPlan.id);
+      }
+      this.loadActionPlansData();
+    } catch (err) {
+      alert(`Erro ao remover etapa: ${err.message}`);
+    }
   }
 };
 

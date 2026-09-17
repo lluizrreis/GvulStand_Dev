@@ -821,5 +821,137 @@ class IgnoredVulnPreviewOut(BaseModel):
     items: List[IgnoredVulnPreviewItem] = []
 
 
+# ====================================================
+# --- Action Plan & Task Schemas (GvulStand Action Plans) ---
+# ====================================================
+
+class ActionTaskVulnerabilityOut(BaseModel):
+    id: int
+    action_task_id: int
+    vulnerability_id: int
+    plugin_id: Optional[str] = None
+    plugin_name: Optional[str] = None
+    severity: Optional[str] = None
+    cve: Optional[str] = None
+    host_ip: Optional[str] = None
+    host_name: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ActionTaskBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    order_index: int = 0
+    status: str = "TODO"  # 'TODO', 'DOING', 'REVIEW', 'DONE', 'BLOCKED'
+    assigned_user_id: Optional[int] = None
+    start_date: Optional[datetime] = None
+    due_date: Optional[datetime] = None
+
+
+class ActionTaskCreate(ActionTaskBase):
+    vulnerability_ids: Optional[List[int]] = None
+
+
+class ActionTaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    order_index: Optional[int] = None
+    status: Optional[str] = None  # 'TODO', 'DOING', 'REVIEW', 'DONE', 'BLOCKED'
+    assigned_user_id: Optional[int] = None
+    start_date: Optional[datetime] = None
+    due_date: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    vulnerability_ids: Optional[List[int]] = None
+    sync_vuln_treatment: bool = False
+
+
+class ActionTaskOut(ActionTaskBase):
+    id: int
+    action_plan_id: int
+    assigned_user_name: Optional[str] = None
+    completed_at: Optional[datetime] = None
+    is_overdue: bool = False
+    vulnerabilities_count: int = 0
+    vulnerability_links: List[ActionTaskVulnerabilityOut] = []
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ActionPlanBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    asset_group_id: Optional[int] = None
+    scope_type: str = "CUSTOM"  # 'HOST', 'VULNERABILITY', 'GROUP', 'CUSTOM'
+    target_host_id: Optional[int] = None
+    target_host_ip: Optional[str] = None
+    target_plugin_id: Optional[str] = None
+    priority: str = "MEDIUM"  # 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'
+    status: str = "PLANNED"  # 'DRAFT', 'PLANNED', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED', 'CANCELLED'
+    owner_user_id: Optional[int] = None
+    due_date: Optional[datetime] = None
+
+
+class ActionPlanCreate(ActionPlanBase):
+    initial_tasks: Optional[List[ActionTaskCreate]] = None
+    auto_link_vulnerabilities: bool = False
+
+
+class ActionPlanUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    asset_group_id: Optional[int] = None
+    scope_type: Optional[str] = None
+    target_host_id: Optional[int] = None
+    target_host_ip: Optional[str] = None
+    target_plugin_id: Optional[str] = None
+    priority: Optional[str] = None
+    status: Optional[str] = None
+    owner_user_id: Optional[int] = None
+    due_date: Optional[datetime] = None
+
+
+class ActionPlanOut(ActionPlanBase):
+    id: int
+    asset_group_name: Optional[str] = None
+    target_host_ip: Optional[str] = None
+    target_host_name: Optional[str] = None
+    owner_user_name: Optional[str] = None
+    created_by_username: str
+    total_tasks: int = 0
+    completed_tasks: int = 0
+    progress_percent: float = 0.0
+    is_overdue: bool = False
+    tasks: List[ActionTaskOut] = []
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ActionPlanStatsOut(BaseModel):
+    total_plans: int = 0
+    planned_count: int = 0
+    in_progress_count: int = 0
+    completed_count: int = 0
+    blocked_count: int = 0
+    overdue_count: int = 0
+    total_tasks: int = 0
+    completed_tasks: int = 0
+    overall_progress_percent: float = 0.0
+
+
+class ActionPlanAssigneeOut(BaseModel):
+    id: int
+    username: str
+    full_name: Optional[str] = None
+    role: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+
 
 

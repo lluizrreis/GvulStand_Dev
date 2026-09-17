@@ -249,3 +249,77 @@ class SystemParameters(Base):
 
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
     updated_by_username = Column(String(100), nullable=True)
+
+
+class ActionPlan(Base):
+    """
+    Representa o Plano de Ação ou Projeto de Remediação (GvulStand Action Plans).
+    Permite agrupar esforços de correção por Host, por Vulnerabilidade (Plugin/CVE),
+    por Grupo de Ativos ou Customizado, atendendo ISO 27001 (Controle 8.8) e PDCA ISO 9001.
+    """
+    __tablename__ = "action_plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    asset_group_id = Column(Integer, ForeignKey("asset_groups.id", ondelete="SET NULL"), nullable=True, index=True)
+    scope_type = Column(String(50), default="CUSTOM", nullable=False) # 'HOST', 'VULNERABILITY', 'GROUP', 'CUSTOM'
+    target_host_id = Column(Integer, ForeignKey("hosts.id", ondelete="SET NULL"), nullable=True, index=True)
+    target_plugin_id = Column(String(50), nullable=True, index=True)
+    priority = Column(String(30), default="MEDIUM", nullable=False) # 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'
+    status = Column(String(30), default="PLANNED", nullable=False) # 'DRAFT', 'PLANNED', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED', 'CANCELLED'
+    created_by_username = Column(String(100), nullable=False)
+    owner_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    due_date = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
+
+    asset_group = relationship("AssetGroup")
+    target_host = relationship("Host")
+    owner_user = relationship("User", foreign_keys=[owner_user_id])
+    tasks = relationship("ActionTask", back_populates="action_plan", cascade="all, delete-orphan", order_by="ActionTask.order_index")
+
+
+class ActionTask(Base):
+    """
+    Etapa ou Tarefa pertencente a um Plano de Ação de Remediação.
+    Possui responsável direto, prazo e status (TODO, DOING, REVIEW, DONE, BLOCKED).
+    """
+    __tablename__ = "action_tasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    action_plan_id = Column(Integer, ForeignKey("action_plans.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    order_index = Column(Integer, default=0, nullable=False)
+    status = Column(String(30), default="TODO", nullable=False) # 'TODO', 'DOING', 'REVIEW', 'DONE', 'BLOCKED'
+    assigned_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    start_date = Column(DateTime, nullable=True)
+    due_date = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
+
+    action_plan = relationship("ActionPlan", back_populates="tasks")
+    assigned_user = relationship("User", foreign_keys=[assigned_user_id])
+    vulnerability_links = relationship("ActionTaskVulnerabilityLink", back_populates="task", cascade="all, delete-orphan")
+
+
+class ActionTaskVulnerabilityLink(Base):
+    """
+    Tabela associativa ligando etapas/tarefas de remediação a vulnerabilidades concretas.
+    Permite rastreabilidade cruzada e sincronização de tratativas.
+    """
+    __tablename__ = "action_task_vulnerabilities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    action_task_id = Column(Integer, ForeignKey("action_tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    vulnerability_id = Column(Integer, ForeignKey("vulnerabilities.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    task = relationship("ActionTask", back_populates="vulnerability_links")
+    vulnerability = relationship("Vulnerability")
+
+    __table_args__ = (
+        Index("ix_task_vuln_unique", "action_task_id", "vulnerability_id", unique=True),
+    )
+

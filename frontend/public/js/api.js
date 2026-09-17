@@ -356,5 +356,74 @@ const API = {
 
   async getTreatmentHistory(vulnId) {
     return this.request(`/vulnerabilities/${vulnId}/treatment-history`);
+  },
+
+  // Action Plans Endpoints
+  async listActionPlans(params = {}) {
+    const query = new URLSearchParams();
+    if (params.asset_group_id) query.append('asset_group_id', params.asset_group_id);
+    if (params.status) query.append('status', params.status);
+    if (params.priority) query.append('priority', params.priority);
+    if (params.scope_type) query.append('scope_type', params.scope_type);
+    if (params.search) query.append('search', params.search);
+
+    const qs = query.toString();
+    return this.request(`/action-plans${qs ? '?' + qs : ''}`);
+  },
+
+  async getActionPlanStats(params = {}) {
+    const query = new URLSearchParams();
+    if (params.asset_group_id) query.append('asset_group_id', params.asset_group_id);
+    const qs = query.toString();
+    return this.request(`/action-plans/stats${qs ? '?' + qs : ''}`);
+  },
+
+  async getActionPlanAssignees() {
+    return this.request('/action-plans/assignees');
+  },
+
+  async getActionPlan(planId) {
+    return this.request(`/action-plans/${planId}`);
+  },
+
+  async createActionPlan(data) {
+    return this.request('/action-plans', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  async updateActionPlan(planId, data) {
+    return this.request(`/action-plans/${planId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  },
+
+  async deleteActionPlan(planId) {
+    return this.request(`/action-plans/${planId}`, {
+      method: 'DELETE'
+    });
+  },
+
+  async addActionTask(planId, data) {
+    return this.request(`/action-plans/${planId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  async updateActionTask(taskId, data) {
+    return this.request(`/action-plans/tasks/${taskId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  },
+
+  async deleteActionTask(taskId) {
+    return this.request(`/action-plans/tasks/${taskId}`, {
+      method: 'DELETE'
+    });
   }
 };
+

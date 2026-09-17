@@ -177,12 +177,22 @@ def get_unique_hosts(
     active_scan_ids = get_latest_scan_ids(db, asset_group_id)
     if not active_scan_ids:
         return []
-    hosts = db.query(models.Host.ip_address, models.Host.hostname)\
+    hosts = db.query(models.Host.id, models.Host.ip_address, models.Host.hostname)\
         .filter(models.Host.scan_id.in_(active_scan_ids))\
-        .distinct()\
         .order_by(models.Host.ip_address)\
         .all()
-    return [{"ip": h.ip_address, "hostname": h.hostname or ""} for h in hosts]
+    seen = set()
+    result = []
+    for h in hosts:
+        if h.ip_address not in seen:
+            seen.add(h.ip_address)
+            result.append({
+                "id": h.id,
+                "ip": h.ip_address,
+                "ip_address": h.ip_address,
+                "hostname": h.hostname or ""
+            })
+    return result
 
 @router.get("/inventory", response_model=schemas.PaginatedInventoryOut)
 @router.get("/hosts", response_model=schemas.PaginatedInventoryOut)
