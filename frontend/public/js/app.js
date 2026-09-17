@@ -22,7 +22,14 @@ const App = {
     vulnTotalCount: 0,
     parameters: null,
     timezones: [],
-    clockInterval: null
+    clockInterval: null,
+    inventoryList: [],
+    inventoryStats: null,
+    inventoryPage: 1,
+    inventoryPageSize: 50,
+    inventoryTotalPages: 1,
+    inventoryTotalCount: 0,
+    inventoryCurrentHostIp: null
   },
 
   async init() {
@@ -223,6 +230,42 @@ const App = {
     const diagCatFilter = document.getElementById('diag-category-filter');
     if (diagCatFilter) {
       diagCatFilter.addEventListener('change', () => this.loadScanDiagnostics());
+    }
+
+    // Inventory Filters
+    const invSearch = document.getElementById('inventory-search-input');
+    if (invSearch) {
+      let invTimeout = null;
+      invSearch.addEventListener('input', () => {
+        clearTimeout(invTimeout);
+        this.state.inventoryPage = 1;
+        invTimeout = setTimeout(() => this.loadInventoryData(), 300);
+      });
+    }
+
+    const invSev = document.getElementById('inventory-sev-filter');
+    if (invSev) {
+      invSev.addEventListener('change', () => {
+        this.state.inventoryPage = 1;
+        this.loadInventoryData();
+      });
+    }
+
+    const invSort = document.getElementById('inventory-sort-filter');
+    if (invSort) {
+      invSort.addEventListener('change', () => {
+        this.state.inventoryPage = 1;
+        this.loadInventoryData();
+      });
+    }
+
+    const invPageSize = document.getElementById('inventory-page-size');
+    if (invPageSize) {
+      invPageSize.addEventListener('change', (e) => {
+        this.state.inventoryPage = 1;
+        this.state.inventoryPageSize = parseInt(e.target.value) || 50;
+        this.loadInventoryData();
+      });
     }
   },
 
@@ -468,6 +511,9 @@ const App = {
     switch (this.state.currentTab) {
       case 'dashboard':
         this.loadDashboardData();
+        break;
+      case 'inventory':
+        this.loadInventoryData();
         break;
       case 'top100':
         this.loadTop100Data();
@@ -1134,6 +1180,350 @@ const App = {
       this.refreshIcons();
     } catch (e) {
       tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-rose-400">Erro ao carregar dados: ${e.message}</td></tr>`;
+    }
+  },
+
+  // --- INVENTORY MODULE ---
+  async loadInventoryData() {
+    const tbody = document.getElementById('inventory-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400">
+      <div class="inline-flex items-center space-x-2">
+        <i data-lucide="loader-2" class="w-5 h-5 animate-spin text-sky-500"></i>
+        <span>Carregando inventário de hosts...</span>
+      </div>
+    </td></tr>`;
+    this.refreshIcons();
+
+    const assetGroupId = this.state.selectedAssetGroupId || '';
+    const search = document.getElementById('inventory-search-input')?.value.trim() || '';
+    const severityFilter = document.getElementById('inventory-sev-filter')?.value || '';
+    const sortVal = document.getElementById('inventory-sort-filter')?.value || 'risk_score_desc';
+    
+    let sortBy = 'risk_score';
+    let sortOrder = 'desc';
+    if (sortVal === 'risk_score_asc') {
+      sortBy = 'risk_score';
+      sortOrder = 'asc';
+    } else if (sortVal === 'critical_desc') {
+      sortBy = 'critical_count';
+      sortOrder = 'desc';
+    } else if (sortVal === 'high_desc') {
+      sortBy = 'high_count';
+      sortOrder = 'desc';
+    } else if (sortVal === 'ip_asc') {
+      sortBy = 'ip_address';
+      sortOrder = 'asc';
+    } else if (sortVal === 'ip_desc') {
+      sortBy = 'ip_address';
+      sortOrder = 'desc';
+    } else if (sortVal === 'hostname_asc') {
+      sortBy = 'hostname';
+      sortOrder = 'asc';
+    } else if (sortVal === 'os_asc') {
+      sortBy = 'os';
+      sortOrder = 'asc';
+    }
+
+    const page = this.state.inventoryPage || 1;
+    const pageSize = this.state.inventoryPageSize || 50;
+
+    try {
+      const res = await API.listInventory({
+        asset_group_id: assetGroupId,
+        search,
+        severity_filter: severityFilter,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+        page,
+        page_size: pageSize
+      });
+
+      this.state.inventoryList = res.items || [];
+      this.state.inventoryStats = res.stats || null;
+      this.state.inventoryTotalCount = res.total || 0;
+      this.state.inventoryTotalPages = res.total_pages || 1;
+      this.state.inventoryPage = res.page || 1;
+
+      // Update KPI counters
+      const kpiHosts = document.getElementById('kpi-inv-hosts');
+      const kpiCritHosts = document.getElementById('kpi-inv-crit-hosts');
+      const kpiTotalVulns = document.getElementById('kpi-inv-total-vulns');
+      const kpiCritCount = document.getElementById('kpi-inv-crit-count');
+      const kpiHighCount = document.getElementById('kpi-inv-high-count');
+      const kpiMedCount = document.getElementById('kpi-inv-med-count');
+      const kpiLowCount = document.getElementById('kpi-inv-low-count');
+      const kpiAvgRisk = document.getElementById('kpi-inv-avg-risk');
+      const kpiMaxRisk = document.getElementById('kpi-inv-max-risk');
+      const kpiExploitsCount = document.getElementById('kpi-inv-exploits-count');
+      const badgeCount = document.getElementById('inventory-count-badge');
+
+      if (res.stats) {
+        if (kpiHosts) kpiHosts.textContent = Number(res.stats.total_hosts || 0).toLocaleString();
+        if (kpiCritHosts) kpiCritHosts.textContent = Number(res.stats.hosts_with_critical || 0).toLocaleString();
+        if (kpiTotalVulns) kpiTotalVulns.textContent = Number(res.stats.total_vulns || 0).toLocaleString();
+        if (kpiCritCount) kpiCritCount.textContent = Number(res.stats.total_critical || 0).toLocaleString();
+        if (kpiHighCount) kpiHighCount.textContent = Number(res.stats.total_high || 0).toLocaleString();
+        if (kpiMedCount) kpiMedCount.textContent = Number(res.stats.total_medium || 0).toLocaleString();
+        if (kpiLowCount) kpiLowCount.textContent = Number(res.stats.total_low || 0).toLocaleString();
+        if (kpiAvgRisk) kpiAvgRisk.textContent = Number(res.stats.avg_risk_score || 0).toFixed(1);
+        if (kpiMaxRisk) kpiMaxRisk.textContent = Number(res.stats.max_risk_score || 0).toFixed(1);
+        if (kpiExploitsCount) kpiExploitsCount.textContent = Number(res.stats.hosts_with_exploits || 0).toLocaleString();
+      }
+      if (badgeCount) {
+        badgeCount.textContent = `${Number(res.total || 0).toLocaleString()} Hosts Mapeados`;
+      }
+
+      // Render rows
+      if (!res.items || res.items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-500">
+          <div class="flex flex-col items-center justify-center space-y-2">
+            <i data-lucide="inbox" class="w-8 h-8 text-slate-400"></i>
+            <span class="text-sm">Nenhum host encontrado para os filtros selecionados.</span>
+          </div>
+        </td></tr>`;
+        this.renderInventoryPagination(res);
+        this.refreshIcons();
+        return;
+      }
+
+      tbody.innerHTML = res.items.map(h => {
+        const score = Number(h.risk_score || 0);
+        let riskBadgeClass = 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+        if (score >= 120) {
+          riskBadgeClass = 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border-rose-200 dark:border-rose-800/60 font-bold';
+        } else if (score >= 60) {
+          riskBadgeClass = 'bg-orange-50 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300 border-orange-200 dark:border-orange-800/60 font-bold';
+        } else if (score >= 20) {
+          riskBadgeClass = 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800/60 font-bold';
+        }
+
+        const osDisplay = h.os ? this.escapeHtml(h.os) : '<span class="text-slate-400 italic text-[11px]">Não detectado</span>';
+        const hostnameDisplay = h.hostname ? this.escapeHtml(h.hostname) : '<span class="text-slate-400 italic text-[11px]">Não detectado</span>';
+        const groupDisplay = h.asset_group_name ? this.escapeHtml(h.asset_group_name) : '-';
+
+        return `
+          <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
+            <td>
+              <div class="flex items-center space-x-2">
+                <i data-lucide="monitor" class="w-4 h-4 text-slate-400 shrink-0"></i>
+                <a href="javascript:void(0)" onclick="App.openHostModal(${h.id})" class="font-mono font-bold text-sky-600 dark:text-sky-400 hover:underline text-xs" title="Ver vulnerabilidades deste host">
+                  ${this.escapeHtml(h.ip_address)}
+                </a>
+              </div>
+            </td>
+            <td>
+              <div class="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[200px]" title="${h.hostname || ''}">
+                ${hostnameDisplay}
+              </div>
+            </td>
+            <td>
+              <div class="text-xs text-slate-600 dark:text-slate-300 truncate max-w-xs" title="${h.os || ''}">
+                ${osDisplay}
+              </div>
+            </td>
+            <td>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 truncate max-w-[160px]" title="${h.asset_group_name || ''}">
+                ${groupDisplay}
+              </span>
+            </td>
+            <td class="text-center">
+              <span class="inline-block min-w-[28px] px-2 py-0.5 rounded text-xs font-extrabold ${h.critical_count > 0 ? 'bg-red-100 text-red-700 dark:bg-red-950/70 dark:text-red-300 border border-red-200 dark:border-red-800' : 'text-slate-400 bg-slate-100 dark:bg-slate-800/60'}">${h.critical_count}</span>
+            </td>
+            <td class="text-center">
+              <span class="inline-block min-w-[28px] px-2 py-0.5 rounded text-xs font-extrabold ${h.high_count > 0 ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/70 dark:text-orange-300 border border-orange-200 dark:border-orange-800' : 'text-slate-400 bg-slate-100 dark:bg-slate-800/60'}">${h.high_count}</span>
+            </td>
+            <td class="text-center">
+              <span class="inline-block min-w-[28px] px-2 py-0.5 rounded text-xs font-extrabold ${h.medium_count > 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800' : 'text-slate-400 bg-slate-100 dark:bg-slate-800/60'}">${h.medium_count}</span>
+            </td>
+            <td class="text-center">
+              <span class="inline-block min-w-[28px] px-2 py-0.5 rounded text-xs font-extrabold ${h.low_count > 0 ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200 dark:border-blue-800' : 'text-slate-400 bg-slate-100 dark:bg-slate-800/60'}">${h.low_count}</span>
+            </td>
+            <td class="text-center">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-mono border ${riskBadgeClass}">
+                ${score.toFixed(1)}
+              </span>
+            </td>
+            <td class="text-right whitespace-nowrap">
+              <div class="flex items-center justify-end space-x-1.5">
+                <button onclick="App.openHostModal(${h.id})" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 hover:bg-sky-100 dark:hover:bg-sky-900/60 cursor-pointer flex items-center space-x-1" title="Ver vulnerabilidades deste host">
+                  <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+                  <span>Vulnerabilidades</span>
+                </button>
+                <button onclick="App.filterVulnsByHost('${this.escapeHtml(h.ip_address)}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" title="Filtrar no Explorador de Vulnerabilidades">
+                  <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      this.renderInventoryPagination(res);
+      this.refreshIcons();
+    } catch (e) {
+      console.error('Error loading inventory data:', e);
+      tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-rose-500">Erro ao carregar inventário: ${this.escapeHtml(e.message)}</td></tr>`;
+    }
+  },
+
+  renderInventoryPagination(res) {
+    const total = res.total || 0;
+    const page = res.page || 1;
+    const pageSize = res.page_size || 50;
+    const totalPages = res.total_pages || 1;
+
+    const pageInfo = document.getElementById('inventory-page-info');
+    const prevBtn = document.getElementById('inventory-prev-btn');
+    const nextBtn = document.getElementById('inventory-next-btn');
+    const pillsContainer = document.getElementById('inventory-page-pills');
+
+    if (pageInfo) {
+      if (total === 0) {
+        pageInfo.textContent = 'Mostrando 0 de 0 hosts';
+      } else {
+        const start = (page - 1) * pageSize + 1;
+        const end = Math.min(total, page * pageSize);
+        pageInfo.textContent = `Mostrando ${start.toLocaleString()} a ${end.toLocaleString()} de ${total.toLocaleString()} hosts`;
+      }
+    }
+
+    if (prevBtn) prevBtn.disabled = page <= 1;
+    if (nextBtn) nextBtn.disabled = page >= totalPages;
+
+    if (pillsContainer) {
+      pillsContainer.innerHTML = '';
+      if (totalPages <= 1) return;
+
+      const maxPills = 5;
+      let startPill = Math.max(1, page - Math.floor(maxPills / 2));
+      let endPill = Math.min(totalPages, startPill + maxPills - 1);
+      if (endPill - startPill + 1 < maxPills) {
+        startPill = Math.max(1, endPill - maxPills + 1);
+      }
+
+      for (let p = startPill; p <= endPill; p++) {
+        const btn = document.createElement('button');
+        btn.textContent = String(p);
+        btn.className = p === page
+          ? 'px-3 py-1 rounded-lg bg-sky-600 text-white font-bold text-xs cursor-pointer shadow-xs'
+          : 'px-3 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs cursor-pointer transition';
+        btn.onclick = () => this.setInventoryPage(p);
+        pillsContainer.appendChild(btn);
+      }
+    }
+  },
+
+  setInventoryPage(page) {
+    if (page < 1 || (this.state.inventoryTotalPages && page > this.state.inventoryTotalPages)) return;
+    this.state.inventoryPage = page;
+    this.loadInventoryData();
+  },
+
+  clearInventoryFilters() {
+    const sInput = document.getElementById('inventory-search-input');
+    const sevFilter = document.getElementById('inventory-sev-filter');
+    const sortFilter = document.getElementById('inventory-sort-filter');
+    if (sInput) sInput.value = '';
+    if (sevFilter) sevFilter.value = '';
+    if (sortFilter) sortFilter.value = 'risk_score_desc';
+    this.state.inventoryPage = 1;
+    this.loadInventoryData();
+  },
+
+  async exportInventoryCSV() {
+    try {
+      const assetGroupId = this.state.selectedAssetGroupId || '';
+      const search = document.getElementById('inventory-search-input')?.value.trim() || '';
+      const severityFilter = document.getElementById('inventory-sev-filter')?.value || '';
+      const sortVal = document.getElementById('inventory-sort-filter')?.value || 'risk_score_desc';
+
+      let sortBy = 'risk_score';
+      let sortOrder = 'desc';
+      if (sortVal === 'risk_score_asc') {
+        sortBy = 'risk_score';
+        sortOrder = 'asc';
+      } else if (sortVal === 'critical_desc') {
+        sortBy = 'critical_count';
+        sortOrder = 'desc';
+      } else if (sortVal === 'high_desc') {
+        sortBy = 'high_count';
+        sortOrder = 'desc';
+      } else if (sortVal === 'ip_asc') {
+        sortBy = 'ip_address';
+        sortOrder = 'asc';
+      } else if (sortVal === 'ip_desc') {
+        sortBy = 'ip_address';
+        sortOrder = 'desc';
+      } else if (sortVal === 'hostname_asc') {
+        sortBy = 'hostname';
+        sortOrder = 'asc';
+      } else if (sortVal === 'os_asc') {
+        sortBy = 'os';
+        sortOrder = 'asc';
+      }
+
+      const res = await API.listInventory({
+        asset_group_id: assetGroupId,
+        search,
+        severity_filter: severityFilter,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+        page: 1,
+        page_size: 5000
+      });
+
+      const hosts = res.items || [];
+      if (hosts.length === 0) {
+        alert('Nenhum host para exportar com os filtros atuais.');
+        return;
+      }
+
+      const headers = ['IP', 'Hostname', 'Sistema Operacional', 'Grupo de Ativos', 'Criticas', 'Altas', 'Medias', 'Baixas', 'Risk Score'];
+      const rows = hosts.map(h => [
+        `"${(h.ip_address || '').replace(/"/g, '""')}"`,
+        `"${(h.hostname || '').replace(/"/g, '""')}"`,
+        `"${(h.os || '').replace(/"/g, '""')}"`,
+        `"${(h.asset_group_name || '').replace(/"/g, '""')}"`,
+        h.critical_count || 0,
+        h.high_count || 0,
+        h.medium_count || 0,
+        h.low_count || 0,
+        Number(h.risk_score || 0).toFixed(1)
+      ]);
+
+      const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `inventario_hosts_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(`Erro ao exportar CSV de Inventário: ${e.message}`);
+    }
+  },
+
+  filterVulnsByHost(ip) {
+    if (!ip) return;
+    this.navigate('vulnerabilities');
+    const hostFilter = document.getElementById('vuln-host-filter');
+    if (hostFilter) {
+      hostFilter.value = ip;
+      this.state.vulnPage = 1;
+      this.loadVulnerabilitiesList();
+    }
+  },
+
+  filterVulnsFromModal() {
+    const ip = this.state.inventoryCurrentHostIp;
+    this.closeHostModal();
+    if (ip) {
+      this.filterVulnsByHost(ip);
     }
   },
 
@@ -3599,6 +3989,7 @@ const App = {
 
     try {
       const host = await API.getHostDetails(hostId);
+      this.state.inventoryCurrentHostIp = host.ip_address || '';
       document.getElementById('host-modal-ip').textContent = host.ip_address || '-';
       document.getElementById('host-modal-name').textContent = host.hostname || host.netbios_name || 'Sem hostname';
       document.getElementById('host-modal-os').textContent = host.os || 'Não detectado';

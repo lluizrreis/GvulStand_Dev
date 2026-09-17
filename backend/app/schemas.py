@@ -203,6 +203,27 @@ class HostOut(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class InventoryStatsOut(BaseModel):
+    total_hosts: int = 0
+    total_critical: int = 0
+    total_high: int = 0
+    total_medium: int = 0
+    total_low: int = 0
+    total_vulns: int = 0
+    avg_risk_score: float = 0.0
+    max_risk_score: float = 0.0
+    hosts_with_critical: int = 0
+    hosts_with_exploits: int = 0
+
+class PaginatedInventoryOut(BaseModel):
+    items: List[HostOut]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    stats: Optional[InventoryStatsOut] = None
+
+
 # --- Vulnerability Schemas ---
 class VulnerabilityOut(BaseModel):
     id: int

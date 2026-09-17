@@ -315,6 +315,20 @@ const API = {
     return this.request(`/vulnerabilities/unique-hosts${query}`);
   },
 
+  async listInventory(params = {}) {
+    const query = new URLSearchParams();
+    if (params.asset_group_id) query.append('asset_group_id', params.asset_group_id);
+    if (params.search) query.append('search', params.search);
+    if (params.severity_filter) query.append('severity_filter', params.severity_filter);
+    if (params.sort_by) query.append('sort_by', params.sort_by);
+    if (params.sort_order) query.append('sort_order', params.sort_order);
+    if (params.page) query.append('page', params.page);
+    if (params.page_size) query.append('page_size', params.page_size);
+
+    const qs = query.toString();
+    return this.request(`/vulnerabilities/inventory${qs ? '?' + qs : ''}`);
+  },
+
   async getHostDetails(hostId) {
     return this.request(`/vulnerabilities/hosts/${hostId}`);
   },

@@ -181,7 +181,18 @@
               </div>
             </button>
 
-            <!-- 2. Vulnerabilidades -->
+            <!-- 2. Inventário de Hosts -->
+            <button id="nav-inventory" onclick="App.navigate('inventory')" data-tab="inventory" class="nav-link sidebar-link w-full text-left px-3 py-2.5 rounded-xl flex items-center space-x-3 text-xs transition cursor-pointer">
+              <div class="sidebar-icon-box p-1.5 rounded-lg text-sky-600 bg-sky-50 dark:bg-sky-950/40 dark:text-sky-400">
+                <i data-lucide="server" class="w-4 h-4"></i>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="sidebar-title font-semibold text-slate-700 dark:text-slate-200">Inventário</div>
+                <div class="sidebar-subtitle text-[10px] text-slate-400 font-normal">Hosts & Ativos do Parque</div>
+              </div>
+            </button>
+
+            <!-- 3. Vulnerabilidades -->
             <button onclick="App.navigate('vulnerabilities')" data-tab="vulnerabilities" class="nav-link sidebar-link w-full text-left px-3 py-2.5 rounded-xl flex items-center space-x-3 text-xs transition cursor-pointer">
               <div class="sidebar-icon-box p-1.5 rounded-lg text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800">
                 <i data-lucide="shield" class="w-4 h-4"></i>
@@ -913,6 +924,197 @@
               </table>
             </div>
             <p class="text-[11px] text-slate-500 dark:text-slate-400">Distribuição da idade de vulnerabilidades ativas em 6 janelas temporais de exposição contínua.</p>
+          </div>
+        </div>
+
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- TAB: INVENTÁRIO DE HOSTS -->
+      <!-- ==================================================== -->
+      <section id="tab-inventory" class="tab-content hidden space-y-6">
+        
+        <!-- Header & Quick Actions -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center space-x-2">
+              <i data-lucide="server" class="w-6 h-6 text-sky-600 dark:text-sky-400"></i>
+              <span>Inventário de Hosts</span>
+              <span class="text-xs font-bold px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800">ISO 27001</span>
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Mapeamento de ativos, sistemas operacionais, contadores de vulnerabilidades e postura de risco cibernético (Risk Score).
+            </p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button onclick="App.exportInventoryCSV()" class="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold shadow-xs flex items-center space-x-2 transition cursor-pointer" title="Exportar inventário filtrado para CSV">
+              <i data-lucide="download" class="w-4 h-4 text-sky-600 dark:text-sky-400"></i>
+              <span>Exportar CSV</span>
+            </button>
+            <button onclick="App.loadInventoryData()" title="Atualizar Inventário" class="p-2.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            </button>
+            <div id="inventory-count-badge" class="px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 text-xs font-bold text-sky-700 dark:text-sky-300 font-mono">
+              0 Hosts Mapeados
+            </div>
+          </div>
+        </div>
+
+        <!-- 1. KPI Summary Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <!-- Total Hosts -->
+          <div class="glass-panel glass-panel-hover rounded-xl p-4 border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#131B2E]">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">Total de Hosts</span>
+              <div class="kpi-icon-circle kpi-icon-circle-ocean">
+                <i data-lucide="server" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div id="kpi-inv-hosts" class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white mt-2 font-mono">0</div>
+            <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-2 pt-2 border-t border-slate-200 dark:border-slate-800/80 truncate">
+              Ativos no escopo selecionado
+            </div>
+          </div>
+
+          <!-- Hosts Críticos -->
+          <div class="glass-panel glass-panel-hover rounded-xl p-4 border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#131B2E]">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-red-500 dark:text-red-400">Hosts Críticos</span>
+              <div class="kpi-icon-circle kpi-icon-circle-critical">
+                <i data-lucide="alert-octagon" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div id="kpi-inv-crit-hosts" class="text-3xl font-extrabold tracking-tight text-red-600 dark:text-red-400 mt-2 font-mono">0</div>
+            <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-2 pt-2 border-t border-slate-200 dark:border-slate-800/80 truncate">
+              Hosts com vulnerabilidades críticas
+            </div>
+          </div>
+
+          <!-- Vulnerabilidades Totais -->
+          <div class="glass-panel glass-panel-hover rounded-xl p-4 border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#131B2E]">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-orange-500 dark:text-orange-400">Total Vulnerabilidades</span>
+              <div class="kpi-icon-circle kpi-icon-circle-high">
+                <i data-lucide="shield-alert" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div id="kpi-inv-total-vulns" class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white mt-2 font-mono">0</div>
+            <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-2 pt-2 border-t border-slate-200 dark:border-slate-800/80">
+              <span class="font-mono text-red-600 dark:text-red-400 font-bold"><span id="kpi-inv-crit-count">0</span> Crít</span>
+              <span class="font-mono text-orange-600 dark:text-orange-400 font-bold"><span id="kpi-inv-high-count">0</span> Altas</span>
+              <span class="font-mono text-amber-600 dark:text-amber-400 font-bold"><span id="kpi-inv-med-count">0</span> Méd</span>
+              <span class="font-mono text-blue-600 dark:text-blue-400 font-bold"><span id="kpi-inv-low-count">0</span> Baixas</span>
+            </div>
+          </div>
+
+          <!-- Média Risk Score -->
+          <div class="glass-panel glass-panel-hover rounded-xl p-4 border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#131B2E]">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">Média Risk Score</span>
+              <div class="kpi-icon-circle kpi-icon-circle-purple">
+                <i data-lucide="gauge" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div id="kpi-inv-avg-risk" class="text-3xl font-extrabold tracking-tight text-purple-600 dark:text-purple-400 mt-2 font-mono">0.0</div>
+            <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-2 pt-2 border-t border-slate-200 dark:border-slate-800/80">
+              <span>Máx: <span id="kpi-inv-max-risk" class="font-mono font-bold text-slate-700 dark:text-slate-300">0.0</span></span>
+              <span><span id="kpi-inv-exploits-count" class="font-mono font-bold text-purple-500">0</span> c/ Exploit</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Search & Filters Bar -->
+        <div class="glass-panel rounded-2xl p-4 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131B2E] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-center">
+          
+          <!-- Search Input -->
+          <div class="lg:col-span-5 relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <i data-lucide="search" class="w-4 h-4 text-sky-500"></i>
+            </span>
+            <input type="text" id="inventory-search-input" placeholder="Buscar por IP, Hostname, SO ou Grupo de Ativos..." class="w-full pl-9 pr-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500">
+          </div>
+
+          <!-- Severity Filter -->
+          <div class="lg:col-span-3">
+            <select id="inventory-sev-filter" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 font-medium">
+              <option value="">Todas Severidades</option>
+              <option value="critical">🚨 Hosts com Críticas (>0)</option>
+              <option value="high">⚠️ Hosts com Altas (>0)</option>
+              <option value="medium">⚡ Hosts com Médias (>0)</option>
+              <option value="low">ℹ️ Hosts com Baixas (>0)</option>
+              <option value="exploits">🔥 Hosts com Exploits Ativos</option>
+            </select>
+          </div>
+
+          <!-- Sort Filter -->
+          <div class="lg:col-span-3">
+            <select id="inventory-sort-filter" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 font-medium">
+              <option value="risk_score_desc">Ordenar: Maior Risk Score</option>
+              <option value="risk_score_asc">Ordenar: Menor Risk Score</option>
+              <option value="critical_desc">Ordenar: Mais Críticas</option>
+              <option value="high_desc">Ordenar: Mais Altas</option>
+              <option value="ip_asc">Ordenar: IP (Crescente)</option>
+              <option value="ip_desc">Ordenar: IP (Decrescente)</option>
+              <option value="hostname_asc">Ordenar: Hostname (A-Z)</option>
+              <option value="os_asc">Ordenar: Sistema Operacional</option>
+            </select>
+          </div>
+
+          <!-- Clear Filters Button -->
+          <div class="lg:col-span-1">
+            <button type="button" id="btn-clear-inv-filters" onclick="App.clearInventoryFilters()" class="w-full h-full py-2 px-3 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center justify-center space-x-1 cursor-pointer shadow-xs transition" title="Limpar Filtros">
+              <i data-lucide="filter-x" class="w-4 h-4 text-rose-500"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. Table Results -->
+        <div class="glass-panel rounded-2xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131B2E] space-y-4">
+          <div class="overflow-x-auto">
+            <table class="gvul-table w-full text-left">
+              <thead>
+                <tr>
+                  <th class="w-36">Host / IP</th>
+                  <th>Hostname</th>
+                  <th>Sistema Operacional</th>
+                  <th>Grupo de Ativos</th>
+                  <th class="text-center w-20">Críticas</th>
+                  <th class="text-center w-20">Altas</th>
+                  <th class="text-center w-20">Médias</th>
+                  <th class="text-center w-20">Baixas</th>
+                  <th class="text-center w-28">Risk Score</th>
+                  <th class="text-right w-36">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="inventory-tbody"></tbody>
+            </table>
+          </div>
+
+          <!-- Pagination Bar -->
+          <div id="inventory-pagination" class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400">
+            <div class="flex items-center space-x-2">
+              <span>Exibir</span>
+              <select id="inventory-page-size" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 font-semibold cursor-pointer">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+              </select>
+              <span>por página</span>
+              <span class="text-slate-300 dark:text-slate-700">|</span>
+              <span id="inventory-page-info" class="font-medium text-slate-700 dark:text-slate-300">Mostrando 0 de 0 hosts</span>
+            </div>
+
+            <div class="flex items-center space-x-1.5" id="inventory-pagination-controls">
+              <button id="inventory-prev-btn" onclick="App.setInventoryPage(App.state.inventoryPage - 1)" class="px-3 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition">
+                Anterior
+              </button>
+              <div id="inventory-page-pills" class="flex items-center space-x-1"></div>
+              <button id="inventory-next-btn" onclick="App.setInventoryPage(App.state.inventoryPage + 1)" class="px-3 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition">
+                Próximo
+              </button>
+            </div>
           </div>
         </div>
 
@@ -2684,7 +2886,11 @@
         </table>
       </div>
 
-      <div class="flex justify-end mt-4">
+      <div class="flex items-center justify-between mt-4 pt-3 border-t border-slate-200 dark:border-slate-800">
+        <button id="host-modal-filter-vulns-btn" onclick="App.filterVulnsFromModal()" class="px-3.5 py-2 rounded-lg bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/50 dark:hover:bg-sky-900/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 text-xs font-semibold flex items-center space-x-1.5 cursor-pointer transition">
+          <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+          <span>Ver no Explorador de Vulnerabilidades</span>
+        </button>
         <button onclick="App.closeHostModal()" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:border-transparent text-xs font-medium cursor-pointer">Fechar</button>
       </div>
     </div>

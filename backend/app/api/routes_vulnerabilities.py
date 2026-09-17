@@ -3,7 +3,7 @@ import math
 from datetime import datetime, timezone
 from typing import List, Optional, Union, Set
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import case
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
@@ -183,6 +183,169 @@ def get_unique_hosts(
         .order_by(models.Host.ip_address)\
         .all()
     return [{"ip": h.ip_address, "hostname": h.hostname or ""} for h in hosts]
+
+@router.get("/inventory", response_model=schemas.PaginatedInventoryOut)
+@router.get("/hosts", response_model=schemas.PaginatedInventoryOut)
+def get_hosts_inventory(
+    asset_group_id: Optional[int] = None,
+    search: Optional[str] = None,
+    severity_filter: Optional[str] = None,
+    sort_by: str = "risk_score",
+    sort_order: str = "desc",
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Retorna o inventário de hosts mapeados nos scans mais recentes por grupo de ativos,
+    respeitando os filtros globais, com suporte a paginação, pesquisa e ordenação.
+    Retorna IP, hostname, versão do SO, contadores de vulnerabilidades (Críticas, Altas, Médias, Baixas) e Risk Score.
+    """
+    allowed_ids = get_user_allowed_group_ids(db, current_user, action="view")
+    if asset_group_id:
+        if allowed_ids is not None:
+            check_user_group_access(db, current_user, asset_group_id, action="view")
+        active_scan_ids = get_latest_scan_ids(db, asset_group_id)
+    else:
+        if allowed_ids is not None:
+            active_ids = []
+            for gid in allowed_ids:
+                active_ids.extend(get_latest_scan_ids(db, gid))
+            active_scan_ids = active_ids
+        else:
+            active_scan_ids = get_latest_scan_ids(db, None)
+
+    if not active_scan_ids:
+        return schemas.PaginatedInventoryOut(
+            items=[],
+            total=0,
+            page=page,
+            page_size=page_size,
+            total_pages=1,
+            stats=schemas.InventoryStatsOut()
+        )
+
+    base_query = db.query(models.Host)\
+        .join(models.AssetGroup, models.Host.asset_group_id == models.AssetGroup.id)\
+        .filter(models.Host.scan_id.in_(active_scan_ids))
+
+    if search:
+        st = f"%{search.strip()}%"
+        base_query = base_query.filter(
+            (models.Host.ip_address.ilike(st)) |
+            (models.Host.hostname.ilike(st)) |
+            (models.Host.os.ilike(st)) |
+            (models.AssetGroup.name.ilike(st))
+        )
+
+    if severity_filter:
+        sev_clean = severity_filter.strip().lower()
+        if sev_clean == "critical":
+            base_query = base_query.filter(models.Host.critical_count > 0)
+        elif sev_clean == "high":
+            base_query = base_query.filter(models.Host.high_count > 0)
+        elif sev_clean == "medium":
+            base_query = base_query.filter(models.Host.medium_count > 0)
+        elif sev_clean == "low":
+            base_query = base_query.filter(models.Host.low_count > 0)
+        elif sev_clean == "exploits":
+            base_query = base_query.filter(models.Host.exploitable_critical_count > 0)
+
+    # Compute overall stats matching the filters
+    stats_query = db.query(
+        func.count(models.Host.id).label("total_hosts"),
+        func.coalesce(func.sum(models.Host.critical_count), 0).label("total_critical"),
+        func.coalesce(func.sum(models.Host.high_count), 0).label("total_high"),
+        func.coalesce(func.sum(models.Host.medium_count), 0).label("total_medium"),
+        func.coalesce(func.sum(models.Host.low_count), 0).label("total_low"),
+        func.coalesce(func.avg(models.Host.risk_score), 0.0).label("avg_risk_score"),
+        func.coalesce(func.max(models.Host.risk_score), 0.0).label("max_risk_score"),
+        func.coalesce(func.sum(case((models.Host.critical_count > 0, 1), else_=0)), 0).label("hosts_with_critical"),
+        func.coalesce(func.sum(case((models.Host.exploitable_critical_count > 0, 1), else_=0)), 0).label("hosts_with_exploits")
+    ).select_from(models.Host).join(models.AssetGroup, models.Host.asset_group_id == models.AssetGroup.id).filter(models.Host.scan_id.in_(active_scan_ids))
+
+    if search:
+        st = f"%{search.strip()}%"
+        stats_query = stats_query.filter(
+            (models.Host.ip_address.ilike(st)) |
+            (models.Host.hostname.ilike(st)) |
+            (models.Host.os.ilike(st)) |
+            (models.AssetGroup.name.ilike(st))
+        )
+    if severity_filter:
+        sev_clean = severity_filter.strip().lower()
+        if sev_clean == "critical":
+            stats_query = stats_query.filter(models.Host.critical_count > 0)
+        elif sev_clean == "high":
+            stats_query = stats_query.filter(models.Host.high_count > 0)
+        elif sev_clean == "medium":
+            stats_query = stats_query.filter(models.Host.medium_count > 0)
+        elif sev_clean == "low":
+            stats_query = stats_query.filter(models.Host.low_count > 0)
+        elif sev_clean == "exploits":
+            stats_query = stats_query.filter(models.Host.exploitable_critical_count > 0)
+
+    stats_row = stats_query.first()
+    total_hosts = stats_row.total_hosts if stats_row else 0
+    total_crit = int(stats_row.total_critical) if stats_row else 0
+    total_high = int(stats_row.total_high) if stats_row else 0
+    total_med = int(stats_row.total_medium) if stats_row else 0
+    total_low = int(stats_row.total_low) if stats_row else 0
+    avg_risk = round(float(stats_row.avg_risk_score), 1) if stats_row else 0.0
+    max_risk = round(float(stats_row.max_risk_score), 1) if stats_row else 0.0
+    hosts_crit = int(stats_row.hosts_with_critical) if stats_row else 0
+    hosts_exp = int(stats_row.hosts_with_exploits) if stats_row else 0
+
+    stats_out = schemas.InventoryStatsOut(
+        total_hosts=total_hosts,
+        total_critical=total_crit,
+        total_high=total_high,
+        total_medium=total_med,
+        total_low=total_low,
+        total_vulns=total_crit + total_high + total_med + total_low,
+        avg_risk_score=avg_risk,
+        max_risk_score=max_risk,
+        hosts_with_critical=hosts_crit,
+        hosts_with_exploits=hosts_exp
+    )
+
+    sort_column_map = {
+        "risk_score": models.Host.risk_score,
+        "ip_address": models.Host.ip_address,
+        "hostname": models.Host.hostname,
+        "os": models.Host.os,
+        "critical_count": models.Host.critical_count,
+        "high_count": models.Host.high_count,
+        "medium_count": models.Host.medium_count,
+        "low_count": models.Host.low_count,
+        "asset_group_name": models.AssetGroup.name
+    }
+    col = sort_column_map.get(sort_by, models.Host.risk_score)
+    if sort_order.lower() == "asc":
+        ordered_query = base_query.order_by(col.asc(), models.Host.id.asc())
+    else:
+        ordered_query = base_query.order_by(col.desc(), models.Host.id.desc())
+
+    total = total_hosts
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    offset = (page - 1) * page_size
+    hosts = ordered_query.offset(offset).limit(page_size).all()
+
+    items = []
+    for h in hosts:
+        item = schemas.HostOut.model_validate(h)
+        item.asset_group_name = h.asset_group.name if h.asset_group else ""
+        items.append(item)
+
+    return schemas.PaginatedInventoryOut(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+        stats=stats_out
+    )
 
 @router.get("/{vuln_id}", response_model=schemas.VulnerabilityOut)
 def get_vulnerability(
