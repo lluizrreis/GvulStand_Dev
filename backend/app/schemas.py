@@ -200,6 +200,8 @@ class HostOut(BaseModel):
     info_count: int
     exploitable_critical_count: int
     risk_score: float
+    active_action_plan_id: Optional[int] = None
+    active_action_plan_title: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -262,6 +264,8 @@ class VulnerabilityOut(BaseModel):
     last_found: Optional[datetime] = None
     aging_days: Optional[int] = None
     is_ignored_in_indicators: bool = False
+    active_action_plan_id: Optional[int] = None
+    active_action_plan_title: Optional[str] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -880,11 +884,34 @@ class ActionTaskOut(ActionTaskBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+# --- Tag Schemas ---
+class TagBase(BaseModel):
+    name: str
+    color_hex: str = "#6366f1"
+    color: Optional[str] = None
+
+    def model_post_init(self, __context):
+        if self.color and (not self.color_hex or self.color_hex == "#6366f1"):
+            self.color_hex = self.color
+        elif self.color_hex and not self.color:
+            self.color = self.color_hex
+
+class TagCreate(TagBase):
+    pass
+
+class TagOut(TagBase):
+    id: int
+    created_at: datetime
+    usage_count: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ActionPlanBase(BaseModel):
     title: str
     description: Optional[str] = None
     asset_group_id: Optional[int] = None
-    scope_type: str = "CUSTOM"  # 'HOST', 'VULNERABILITY', 'GROUP', 'CUSTOM'
+    scope_type: str = "CUSTOM"  # 'HOST', 'VULNERABILITY', 'GROUP', 'MATRIX_NN', 'CUSTOM'
     target_host_id: Optional[int] = None
     target_host_ip: Optional[str] = None
     target_plugin_id: Optional[str] = None
@@ -892,11 +919,17 @@ class ActionPlanBase(BaseModel):
     status: str = "PLANNED"  # 'DRAFT', 'PLANNED', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED', 'CANCELLED'
     owner_user_id: Optional[int] = None
     due_date: Optional[datetime] = None
+    tags: List[str] = []
+    scope_host_ips: List[str] = []
+    scope_plugin_ids: List[str] = []
 
 
 class ActionPlanCreate(ActionPlanBase):
     initial_tasks: Optional[List[ActionTaskCreate]] = None
     auto_link_vulnerabilities: bool = False
+    tags: Optional[List[str]] = None
+    scope_host_ips: Optional[List[str]] = None
+    scope_plugin_ids: Optional[List[str]] = None
 
 
 class ActionPlanUpdate(BaseModel):
@@ -911,6 +944,9 @@ class ActionPlanUpdate(BaseModel):
     status: Optional[str] = None
     owner_user_id: Optional[int] = None
     due_date: Optional[datetime] = None
+    tags: Optional[List[str]] = None
+    scope_host_ips: Optional[List[str]] = None
+    scope_plugin_ids: Optional[List[str]] = None
 
 
 class ActionPlanOut(ActionPlanBase):
@@ -924,11 +960,43 @@ class ActionPlanOut(ActionPlanBase):
     completed_tasks: int = 0
     progress_percent: float = 0.0
     is_overdue: bool = False
+    tags: List[str] = []
+    scope_host_ips: List[str] = []
+    scope_plugin_ids: List[str] = []
     tasks: List[ActionTaskOut] = []
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ActionPlanPreviewImpactIn(BaseModel):
+    scope_type: str = "CUSTOM"  # 'HOST', 'VULNERABILITY', 'GROUP', 'MATRIX_NN', 'CUSTOM'
+    asset_group_id: Optional[int] = None
+    target_host_id: Optional[int] = None
+    target_host_ip: Optional[str] = None
+    target_plugin_id: Optional[str] = None
+    scope_host_ips: Optional[List[str]] = None
+    scope_plugin_ids: Optional[List[str]] = None
+
+
+class ActionPlanPreviewImpactOut(BaseModel):
+    total_affected_vulns: int = 0
+    total_affected_hosts: int = 0
+    total_vulnerabilities: int = 0
+    unique_hosts_count: int = 0
+    unique_plugins_count: int = 0
+    critical_count: int = 0
+    high_count: int = 0
+    medium_count: int = 0
+    low_count: int = 0
+    severity_distribution: Dict[str, int] = {}
+    already_in_plan_count: int = 0
+    unassigned_count: int = 0
+    is_relational_valid: bool = True
+    unmatched_hosts: List[str] = []
+    unmatched_plugins: List[str] = []
+    validation_message: Optional[str] = None
 
 
 class ActionPlanStatsOut(BaseModel):
@@ -950,6 +1018,27 @@ class ActionPlanAssigneeOut(BaseModel):
     role: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ActionPlanWizardHostOut(BaseModel):
+    id: Optional[int] = None
+    ip: str
+    hostname: str = ""
+    asset_group_id: Optional[int] = None
+    asset_group_name: str = "Global"
+    vuln_count: int = 0
+    critical_count: int = 0
+    high_count: int = 0
+    medium_count: int = 0
+    low_count: int = 0
+
+
+class ActionPlanWizardVulnOut(BaseModel):
+    plugin_id: str
+    plugin_name: str
+    severity: str = "Medium"
+    cve: str = ""
+    affected_hosts_count: int = 0
 
 
 

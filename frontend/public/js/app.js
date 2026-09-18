@@ -173,6 +173,8 @@ const App = {
     if (globalFilter) {
       globalFilter.addEventListener('change', (e) => {
         this.state.selectedAssetGroupId = e.target.value;
+        const actionGroupFilter = document.getElementById('action-filter-asset-group');
+        if (actionGroupFilter) actionGroupFilter.value = e.target.value || '';
         this.loadUniqueHostsDatalist();
         this.loadCurrentTabData();
       });
@@ -217,6 +219,14 @@ const App = {
     const treatFilter = document.getElementById('vuln-treatment-filter');
     if (treatFilter) {
       treatFilter.addEventListener('change', () => {
+        this.state.vulnPage = 1;
+        this.loadVulnerabilitiesList();
+      });
+    }
+
+    const orphanFilter = document.getElementById('vuln-orphan-filter');
+    if (orphanFilter) {
+      orphanFilter.addEventListener('change', () => {
         this.state.vulnPage = 1;
         this.loadVulnerabilitiesList();
       });
@@ -810,6 +820,7 @@ const App = {
       
       const filter = document.getElementById('global-asset-group-filter');
       const compGroupSelect = document.getElementById('comp-asset-group-select');
+      const actionGroupFilter = document.getElementById('action-filter-asset-group');
 
       const optionsHtml = this.getHierarchicalGroupOptions(true, 'Todos os Grupos de Ativos');
       if (filter) {
@@ -817,6 +828,13 @@ const App = {
         filter.innerHTML = optionsHtml;
         if (currFilter && this.state.assetGroups.some(g => String(g.id) === String(currFilter))) {
           filter.value = currFilter;
+        }
+      }
+
+      if (actionGroupFilter) {
+        actionGroupFilter.innerHTML = this.getHierarchicalGroupOptions(true, 'Grupo: Todos');
+        if (this.state.selectedAssetGroupId && this.state.assetGroups.some(g => String(g.id) === String(this.state.selectedAssetGroupId))) {
+          actionGroupFilter.value = String(this.state.selectedAssetGroupId);
         }
       }
 
@@ -2230,12 +2248,14 @@ const App = {
     const pageSize = this.state.vulnPageSize || 50;
 
     const hostFilterVal = document.getElementById('vuln-host-filter')?.value.trim() || '';
+    const isOrphan = document.getElementById('vuln-orphan-filter')?.checked || false;
 
     const params = {
       asset_group_id: this.state.selectedAssetGroupId || '',
       severity: document.getElementById('vuln-sev-filter')?.value || '',
       has_exploit: document.getElementById('vuln-exploit-filter')?.value || '',
       treatment_status: document.getElementById('vuln-treatment-filter')?.value || '',
+      not_in_action_plan: isOrphan ? true : undefined,
       search: document.getElementById('vuln-search-input')?.value.trim() || '',
       host: hostFilterVal,
       page: page,
@@ -2449,12 +2469,14 @@ const App = {
     const sevFilter = document.getElementById('vuln-sev-filter');
     const exploitFilter = document.getElementById('vuln-exploit-filter');
     const treatFilter = document.getElementById('vuln-treatment-filter');
+    const orphanFilter = document.getElementById('vuln-orphan-filter');
 
     if (searchInput) searchInput.value = '';
     if (hostFilter) hostFilter.value = '';
     if (sevFilter) sevFilter.value = '';
     if (exploitFilter) exploitFilter.value = '';
     if (treatFilter) treatFilter.value = '';
+    if (orphanFilter) orphanFilter.checked = false;
 
     this.state.vulnPage = 1;
     this.loadVulnerabilitiesList();
@@ -2567,6 +2589,7 @@ const App = {
     switch (status) {
       case 'Remediated': return 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
       case 'In_Remediation': return 'bg-amber-500/20 text-amber-300 border border-amber-500/40';
+      case 'In_Action_Plan': return 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40';
       case 'Accepted_Risk': return 'bg-purple-500/20 text-purple-300 border border-purple-500/40';
       default: return 'bg-rose-500/20 text-rose-300 border border-rose-500/40';
     }
@@ -3593,6 +3616,9 @@ const App = {
       if (notesError) notesError.classList.add('hidden');
       if (saveError) saveError.classList.add('hidden');
 
+      // Render Dedicated Action Plan Card
+      this.renderVulnActionPlanCard(v);
+
       this.refreshIcons();
 
       // Carrega histórico de auditoria assincronamente
@@ -3728,6 +3754,7 @@ const App = {
     const statusLabel = {
       'Open':           { label: 'Em Aberto',    cls: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-400/40' },
       'In_Remediation': { label: 'Em Tratativa', cls: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-400/40' },
+      'In_Action_Plan': { label: 'Em Plano de Ação', cls: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border-indigo-400/40' },
       'Accepted_Risk':  { label: 'Risco Aceito', cls: 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-400/40' },
       'Remediated':     { label: 'Remediada',    cls: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-400/40' }
     };
@@ -4028,6 +4055,7 @@ const App = {
           `).join('');
         }
       }
+      this.renderHostActionPlanCard(host);
       this.refreshIcons();
     } catch (e) {
       alert(`Erro ao carregar detalhes do host: ${e.message}`);
@@ -4036,6 +4064,101 @@ const App = {
 
   closeHostModal() {
     document.getElementById('host-detail-modal')?.classList.add('hidden');
+  },
+
+  renderVulnActionPlanCard(v) {
+    const cardEl = document.getElementById('modal-vuln-action-plan-card');
+    if (!cardEl) return;
+
+    if (v.active_action_plan_id) {
+      cardEl.innerHTML = `
+        <div class="p-3.5 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-start space-x-3">
+            <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 mt-0.5">
+              <i data-lucide="clipboard-check" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                <span>Plano de Ação Ativo (ISO 27001 / ISO 9001)</span>
+                <span class="px-1.5 py-0.2 rounded text-[9px] bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-mono">#${v.active_action_plan_id}</span>
+              </div>
+              <div class="font-bold text-slate-800 dark:text-slate-100 text-xs sm:text-sm mt-0.5">${this.escapeHtml(v.active_action_plan_title || 'Plano de Ação')}</div>
+              <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Esta vulnerabilidade está sob governança ativa vinculada a este plano.</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <button type="button" onclick="App.openPlanFromDetails(${v.active_action_plan_id})" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition shadow-xs">
+              <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+              <span>Acessar Plano</span>
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      cardEl.innerHTML = `
+        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center space-x-2.5 text-xs text-slate-600 dark:text-slate-400">
+            <i data-lucide="alert-circle" class="w-4 h-4 text-amber-500 flex-shrink-0"></i>
+            <span>Nenhum plano de ação ativo associado a esta ocorrência (Vulnerabilidade Órfã).</span>
+          </div>
+          <button type="button" onclick="App.openCreatePlanModalFromVuln()" class="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition flex-shrink-0">
+            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+            <span>Criar Plano</span>
+          </button>
+        </div>
+      `;
+    }
+  },
+
+  renderHostActionPlanCard(host) {
+    const cardEl = document.getElementById('host-modal-action-plan-card');
+    if (!cardEl) return;
+
+    if (host.active_action_plan_id) {
+      cardEl.innerHTML = `
+        <div class="p-3.5 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-start space-x-3">
+            <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 mt-0.5">
+              <i data-lucide="clipboard-check" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                <span>Plano de Ação Ativo para o Host</span>
+                <span class="px-1.5 py-0.2 rounded text-[9px] bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-mono">#${host.active_action_plan_id}</span>
+              </div>
+              <div class="font-bold text-slate-800 dark:text-slate-100 text-xs sm:text-sm mt-0.5">${this.escapeHtml(host.active_action_plan_title || 'Plano de Ação')}</div>
+              <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Este ativo possui um plano de remediação estruturado em andamento.</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <button type="button" onclick="App.openPlanFromDetails(${host.active_action_plan_id})" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition shadow-xs">
+              <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+              <span>Acessar Plano</span>
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      cardEl.innerHTML = `
+        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center space-x-2.5 text-xs text-slate-600 dark:text-slate-400">
+            <i data-lucide="info" class="w-4 h-4 text-slate-400 flex-shrink-0"></i>
+            <span>Nenhum plano de ação de host vinculado a este ativo.</span>
+          </div>
+          <button type="button" onclick="App.openCreatePlanModalFromHost()" class="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition flex-shrink-0">
+            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+            <span>Criar Plano para Host</span>
+          </button>
+        </div>
+      `;
+    }
+  },
+
+  openPlanFromDetails(planId) {
+    this.closeVulnDetailsModal();
+    this.closeHostModal();
+    this.navigate('actionPlans');
+    this.openActionPlanDetail(planId);
   },
 
   openChangePasswordModal() {
@@ -4602,11 +4725,18 @@ const App = {
       this.refreshIcons();
     }
 
+    const actionGroupFilter = document.getElementById('action-filter-asset-group');
+    if (actionGroupFilter && actionGroupFilter.value !== '') {
+      this.state.selectedAssetGroupId = actionGroupFilter.value;
+    } else if (actionGroupFilter && this.state.selectedAssetGroupId) {
+      actionGroupFilter.value = String(this.state.selectedAssetGroupId);
+    }
     const assetGroupId = this.state.selectedAssetGroupId || '';
     const search = document.getElementById('action-filter-search')?.value.trim() || '';
     const status = document.getElementById('action-filter-status')?.value || '';
     const priority = document.getElementById('action-filter-priority')?.value || '';
     const scopeType = document.getElementById('action-filter-scope')?.value || '';
+    const tag = document.getElementById('action-filter-tag')?.value || '';
 
     try {
       const [stats, plans] = await Promise.all([
@@ -4616,7 +4746,8 @@ const App = {
           search,
           status,
           priority,
-          scope_type: scopeType
+          scope_type: scopeType,
+          tag
         })
       ]);
 
@@ -4695,15 +4826,31 @@ const App = {
     this.loadActionPlansData();
   },
 
+  handleActionGroupFilterChange(groupId) {
+    this.state.selectedAssetGroupId = groupId || '';
+    const globalFilter = document.getElementById('global-asset-group-filter');
+    if (globalFilter) globalFilter.value = groupId || '';
+    const actionGroupFilter = document.getElementById('action-filter-asset-group');
+    if (actionGroupFilter) actionGroupFilter.value = groupId || '';
+    this.loadActionPlansData();
+  },
+
   clearActionPlansFilters() {
     const search = document.getElementById('action-filter-search');
     if (search) search.value = '';
+    const group = document.getElementById('action-filter-asset-group');
+    if (group) group.value = '';
     const st = document.getElementById('action-filter-status');
     if (st) st.value = '';
     const prio = document.getElementById('action-filter-priority');
     if (prio) prio.value = '';
     const sc = document.getElementById('action-filter-scope');
     if (sc) sc.value = '';
+    const tag = document.getElementById('action-filter-tag');
+    if (tag) tag.value = '';
+    this.state.selectedAssetGroupId = '';
+    const globalFilter = document.getElementById('global-asset-group-filter');
+    if (globalFilter) globalFilter.value = '';
     this.loadActionPlansData();
   },
 
@@ -4754,6 +4901,10 @@ const App = {
       label = 'Grupo de Ativos';
       icon = 'folder-tree';
       color = 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800';
+    } else if (sc === 'MATRIX_NN') {
+      label = 'Matriz N:N';
+      icon = 'grid';
+      color = 'bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300 border border-teal-200 dark:border-teal-800';
     }
     return `<div class="space-y-1">
       <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${color}">
@@ -4785,6 +4936,8 @@ const App = {
         targetInfo = p.target_host_ip ? `${p.target_host_ip}${p.target_host_name ? ` (${p.target_host_name})` : ''}` : 'Host não especificado';
       } else if (p.scope_type === 'VULNERABILITY') {
         targetInfo = p.target_plugin_id ? `Plugin #${p.target_plugin_id}` : 'Plugin não especificado';
+      } else if (p.scope_type === 'MATRIX_NN') {
+        targetInfo = `${(p.scope_host_ips || []).length} Hosts × ${(p.scope_plugin_ids || []).length} Plugins`;
       } else if (p.scope_type === 'GROUP') {
         targetInfo = p.asset_group_name || 'Grupo Global';
       } else {
@@ -4799,6 +4952,10 @@ const App = {
       const pct = p.progress_percent || 0;
       const barColor = pct === 100 ? 'bg-emerald-500' : (pct > 0 ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700');
 
+      const tagsHtml = (p.tags && p.tags.length > 0)
+        ? `<div class="flex flex-wrap gap-1 mt-1">${p.tags.map(t => `<span class="px-1.5 py-0.2 rounded text-[10px] font-semibold" style="background-color: ${(t.color || '#6366f1')}15; color: ${t.color || '#6366f1'}; border: 1px solid ${(t.color || '#6366f1')}33;">${this.escapeHtml(t.name || t)}</span>`).join('')}</div>`
+        : '';
+
       return `
         <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
           <td class="text-center font-mono font-bold text-slate-500 dark:text-slate-400">#${p.id}</td>
@@ -4807,6 +4964,7 @@ const App = {
               ${this.escapeHtml(p.title)}
             </div>
             ${p.description ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">${this.escapeHtml(p.description)}</div>` : ''}
+            ${tagsHtml}
           </td>
           <td>
             ${this.getActionPlanScopeBadge(p.scope_type, targetInfo, p.asset_group_name)}
@@ -4893,6 +5051,10 @@ const App = {
       const dueStr = p.due_date ? new Date(p.due_date).toLocaleDateString('pt-BR') : '-';
       const pct = p.progress_percent || 0;
       const barColor = pct === 100 ? 'bg-emerald-500' : 'bg-indigo-600';
+      const scopeDesc = p.scope_type === 'MATRIX_NN'
+        ? `${(p.scope_host_ips || []).length} Hosts × ${(p.scope_plugin_ids || []).length} Plugins`
+        : (p.target_host_ip || p.target_plugin_id || p.asset_group_name || 'Geral');
+
       return `
         <div onclick="App.openActionPlanDetail(${p.id})" class="p-3.5 rounded-xl bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-800/80 transition cursor-pointer space-y-2.5">
           <div class="flex items-center justify-between gap-1.5">
@@ -4904,8 +5066,13 @@ const App = {
           </h5>
           <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate">
             <i data-lucide="tag" class="w-3 h-3 inline mr-1 text-slate-400"></i>
-            <span>${this.escapeHtml(p.scope_type)}: ${this.escapeHtml(p.target_host_ip || p.target_plugin_id || p.asset_group_name || 'Geral')}</span>
+            <span>${this.escapeHtml(p.scope_type)}: ${this.escapeHtml(scopeDesc)}</span>
           </div>
+          ${(p.tags && p.tags.length > 0) ? `
+            <div class="flex flex-wrap gap-1">
+              ${p.tags.map(t => `<span class="px-1.5 py-0.2 rounded text-[9px] font-semibold" style="background-color: ${(t.color || '#6366f1')}15; color: ${t.color || '#6366f1'}; border: 1px solid ${(t.color || '#6366f1')}33;">${this.escapeHtml(t.name || t)}</span>`).join('')}
+            </div>
+          ` : ''}
           ${p.asset_group_name ? `
             <div class="text-[10px] text-teal-600 dark:text-teal-400 font-medium truncate" title="Grupo: ${this.escapeHtml(p.asset_group_name)}">
               <i data-lucide="folder-tree" class="w-3 h-3 inline mr-0.5"></i>
@@ -4958,19 +5125,29 @@ const App = {
       const taskAssigneeSelect = document.getElementById('task-form-assignee');
       
       const currentUserId = this.state.user?.id;
-      const optionsHtml = (this.state.actionPlansAssignees || []).map(u => `
+      let optionsHtml = (this.state.actionPlansAssignees || []).map(u => `
         <option value="${u.id}" ${u.id === currentUserId ? 'selected' : ''}>
           ${this.escapeHtml(u.full_name || u.username)} (@${this.escapeHtml(u.username)} - ${this.escapeHtml(u.role)})
         </option>
       `).join('');
 
+      if (!optionsHtml && this.state.user) {
+        optionsHtml = `<option value="${this.state.user.id || 1}" selected>${this.escapeHtml(this.state.user.full_name || this.state.user.username || 'Admin')}</option>`;
+      }
+
       if (ownerSelect) ownerSelect.innerHTML = optionsHtml;
       if (taskAssigneeSelect) taskAssigneeSelect.innerHTML = `<option value="">Mesmo responsável do Plano</option>` + optionsHtml;
     } catch (e) {
       console.error('Erro ao carregar lista de responsáveis:', e);
+      const ownerSelect = document.getElementById('plan-form-owner');
+      if (ownerSelect && (!ownerSelect.options || ownerSelect.options.length === 0)) {
+        const uid = this.state.user?.id || 1;
+        const uname = this.state.user?.username || 'Admin';
+        ownerSelect.innerHTML = `<option value="${uid}" selected>${this.escapeHtml(uname)}</option>`;
+      }
     }
 
-    // 2. Asset Groups (hierárquico multinível)
+    // 2. Asset Groups (hierárquico multinível - sem opção global)
     const groupSelect = document.getElementById('plan-form-asset-group');
     if (groupSelect) {
       if (!this.state.assetGroups || this.state.assetGroups.length === 0) {
@@ -4980,9 +5157,24 @@ const App = {
           console.warn('Erro ao carregar grupos de ativos:', e);
         }
       }
-      groupSelect.innerHTML = `<option value="">Nenhum (Global)</option>` + this.getHierarchicalGroupOptions(false);
-      if (this.state.selectedAssetGroupId) {
+      groupSelect.innerHTML = this.getHierarchicalGroupOptions(false);
+
+      const hierarchical = this.buildHierarchicalGroupList(this.state.assetGroups || []);
+      const firstAllowedGroupId = hierarchical.length > 0 ? String(hierarchical[0].id) : (this.state.assetGroups?.[0]?.id ? String(this.state.assetGroups[0].id) : '');
+
+      if (this.state.selectedAssetGroupId && this.state.assetGroups?.some(g => String(g.id) === String(this.state.selectedAssetGroupId))) {
         groupSelect.value = String(this.state.selectedAssetGroupId);
+      } else if (firstAllowedGroupId) {
+        groupSelect.value = firstAllowedGroupId;
+      }
+    }
+
+    // Sincroniza também o filtro da barra de ferramentas da tela de planos
+    const actionGroupFilter = document.getElementById('action-filter-asset-group');
+    if (actionGroupFilter) {
+      actionGroupFilter.innerHTML = this.getHierarchicalGroupOptions(true, 'Grupo: Todos');
+      if (this.state.selectedAssetGroupId) {
+        actionGroupFilter.value = String(this.state.selectedAssetGroupId);
       }
     }
 
@@ -5002,125 +5194,714 @@ const App = {
         console.error('Erro ao carregar lista de hosts:', e);
       }
     }
+
+    // 4. Tags
+    try {
+      const tags = await API.getActionPlanTags();
+      this.state.actionPlanTags = tags || [];
+      const suggEl = document.getElementById('plan-form-tag-suggestions');
+      if (suggEl) {
+        if (tags && tags.length > 0) {
+          suggEl.innerHTML = tags.map(t => `
+            <button type="button" onclick="App.appendPlanTag('${this.escapeHtml(t.name)}')" class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900 cursor-pointer transition">
+              + ${this.escapeHtml(t.name)}
+            </button>
+          `).join('');
+        } else {
+          suggEl.innerHTML = '';
+        }
+      }
+
+      const filterTagSelect = document.getElementById('action-filter-tag');
+      if (filterTagSelect) {
+        const currentVal = filterTagSelect.value;
+        filterTagSelect.innerHTML = `<option value="">Tag: Todas</option>` + (tags || []).map(t => `
+          <option value="${this.escapeHtml(t.name)}">${this.escapeHtml(t.name)}</option>
+        `).join('');
+        if (currentVal) filterTagSelect.value = currentVal;
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar tags:', e);
+    }
+  },
+
+  appendPlanTag(tagName) {
+    const input = document.getElementById('plan-form-tags');
+    if (!input) return;
+    const existing = input.value.split(',').map(s => s.trim()).filter(Boolean);
+    if (!existing.includes(tagName)) {
+      existing.push(tagName);
+      input.value = existing.join(', ');
+    }
   },
 
   async handlePlanFormAssetGroupChange() {
-    const selectedGroup = document.getElementById('plan-form-asset-group')?.value || '';
-    const hostSelect = document.getElementById('plan-form-target-host');
-    if (hostSelect) {
-      try {
-        const hosts = await API.getUniqueHosts(selectedGroup);
-        const currentVal = hostSelect.value;
-        hostSelect.innerHTML = `<option value="">Selecione um host...</option>` + (hosts || []).map(h => {
-          const val = (h.id != null) ? h.id : (h.ip || h.ip_address);
-          const displayIp = h.ip || h.ip_address || '';
-          const displayName = h.hostname ? ` (${h.hostname})` : '';
-          return `<option value="${val}">${this.escapeHtml(displayIp)}${this.escapeHtml(displayName)}</option>`;
-        }).join('');
-        if (currentVal) hostSelect.value = currentVal;
-      } catch (e) {
-        console.error('Erro ao atualizar lista de hosts pelo grupo:', e);
+    this.state.planWizardSelectedHosts = [];
+    this.state.planWizardSelectedPlugins = [];
+    this.renderWizardSelectedHosts();
+    this.renderWizardSelectedPlugins();
+    if (this.state.planWizardStep === 2) {
+      this.loadWizardCandidateHosts();
+    } else if (this.state.planWizardStep === 3) {
+      this.loadWizardCandidateVulns();
+    }
+    this.updateWizardImpactPreview();
+  },
+
+  handleScopeTypeChange() {},
+
+  // ============================================================
+  // PLAN WIZARD (3-STEP WIZARD) NAVIGATION & STATE MANAGEMENT
+  // ============================================================
+  goToPlanWizardStep(step) {
+    const titleVal = document.getElementById('plan-form-title')?.value?.trim();
+    if (step > 1 && !titleVal) {
+      alert('Por favor, informe o título do plano de ação na Etapa 1 antes de avançar.');
+      this.goToPlanWizardStep(1);
+      document.getElementById('plan-form-title')?.focus();
+      return;
+    }
+
+    const groupVal = document.getElementById('plan-form-asset-group')?.value;
+    if (step > 1 && !groupVal) {
+      alert('Por favor, selecione um Grupo de Ativos na Etapa 1 antes de avançar.');
+      this.goToPlanWizardStep(1);
+      document.getElementById('plan-form-asset-group')?.focus();
+      return;
+    }
+
+    this.state.planWizardStep = step;
+
+    // Toggle panels
+    const p1 = document.getElementById('plan-wizard-panel-1');
+    const p2 = document.getElementById('plan-wizard-panel-2');
+    const p3 = document.getElementById('plan-wizard-panel-3');
+
+    if (p1) p1.classList.toggle('hidden', step !== 1);
+    if (p2) p2.classList.toggle('hidden', step !== 2);
+    if (p3) p3.classList.toggle('hidden', step !== 3);
+
+    // Update Tabs
+    this.updatePlanWizardTabs(step);
+
+    if (step === 2) {
+      this.loadWizardCandidateHosts(document.getElementById('plan-wizard-host-search')?.value || '');
+      this.renderWizardSelectedHosts();
+    } else if (step === 3) {
+      this.setupWizardStep3View();
+      this.updateWizardImpactPreview();
+    }
+
+    this.refreshIcons();
+  },
+
+  updatePlanWizardTabs(step) {
+    for (let i = 1; i <= 3; i++) {
+      const tab = document.getElementById(`plan-wizard-tab-${i}`);
+      const badge = document.getElementById(`plan-wizard-badge-${i}`);
+      if (!tab || !badge) continue;
+
+      if (i === step) {
+        tab.className = 'flex items-center gap-2.5 p-2.5 rounded-xl transition text-left cursor-pointer bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-300 dark:border-indigo-700 shadow-xs';
+        badge.className = 'w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs bg-indigo-600 text-white shrink-0';
+      } else if (i < step) {
+        tab.className = 'flex items-center gap-2.5 p-2.5 rounded-xl transition text-left cursor-pointer bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60';
+        badge.className = 'w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs bg-emerald-600 text-white shrink-0';
+      } else {
+        tab.className = 'flex items-center gap-2.5 p-2.5 rounded-xl transition text-left cursor-pointer bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 opacity-60';
+        badge.className = 'w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 shrink-0';
       }
     }
   },
 
-  handleScopeTypeChange() {
-    const scopeType = document.getElementById('plan-form-scope-type')?.value || 'HOST';
-    const hostWrapper = document.getElementById('plan-target-host-wrapper');
-    const pluginWrapper = document.getElementById('plan-target-plugin-wrapper');
-    const autolinkWrapper = document.getElementById('plan-form-autolink-wrapper');
+  // --- HOST SELECTION (ETAPA 2) ---
+  wizardHostSearchTimeout: null,
+  handleWizardHostSearch(val) {
+    clearTimeout(this.wizardHostSearchTimeout);
+    this.wizardHostSearchTimeout = setTimeout(() => {
+      this.loadWizardCandidateHosts(val);
+    }, 250);
+  },
 
-    if (scopeType === 'HOST') {
-      if (hostWrapper) hostWrapper.classList.remove('hidden');
-      if (pluginWrapper) pluginWrapper.classList.add('hidden');
-      if (autolinkWrapper) autolinkWrapper.classList.remove('hidden');
-    } else if (scopeType === 'VULNERABILITY') {
-      if (hostWrapper) hostWrapper.classList.add('hidden');
-      if (pluginWrapper) pluginWrapper.classList.remove('hidden');
-      if (autolinkWrapper) autolinkWrapper.classList.remove('hidden');
+  async loadWizardCandidateHosts(search = '') {
+    const listEl = document.getElementById('plan-wizard-candidate-hosts');
+    if (!listEl) return;
+
+    listEl.innerHTML = `<div class="text-center py-2 text-[11px] text-slate-400"><i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin inline mr-1 text-indigo-500"></i>Buscando hosts...</div>`;
+    this.refreshIcons();
+
+    try {
+      const groupId = document.getElementById('plan-form-asset-group')?.value || '';
+      const hosts = await API.getWizardHosts(groupId, search);
+      this.state.planWizardCandidateHosts = hosts || [];
+      this.renderWizardCandidateHosts();
+    } catch (err) {
+      listEl.innerHTML = `<div class="text-center py-2 text-[11px] text-rose-500">Erro ao listar hosts: ${this.escapeHtml(err.message)}</div>`;
+    }
+  },
+
+  renderWizardCandidateHosts() {
+    const listEl = document.getElementById('plan-wizard-candidate-hosts');
+    if (!listEl) return;
+
+    const hosts = this.state.planWizardCandidateHosts || [];
+    if (hosts.length === 0) {
+      listEl.innerHTML = `<div class="text-center py-3 text-[11px] text-slate-400">Nenhum host com apontamentos ativos encontrado para este filtro.</div>`;
+      return;
+    }
+
+    const selectedIps = new Set((this.state.planWizardSelectedHosts || []).map(h => h.ip));
+
+    listEl.innerHTML = hosts.map(h => {
+      const isAdded = selectedIps.has(h.ip);
+      const ipEscaped = this.escapeHtml(h.ip);
+      return `
+        <div class="flex items-center justify-between p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800/80 transition border ${isAdded ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20' : 'border-transparent hover:border-slate-200 dark:hover:border-slate-700'} text-[11px]">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-6 h-6 rounded-md flex items-center justify-center bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 shrink-0">
+              <i data-lucide="server" class="w-3.5 h-3.5"></i>
+            </span>
+            <div class="min-w-0">
+              <div class="font-bold text-slate-800 dark:text-slate-200 truncate flex items-center gap-1.5">
+                <span>${ipEscaped}</span>
+                ${h.hostname ? `<span class="text-slate-400 font-normal truncate">(${this.escapeHtml(h.hostname)})</span>` : ''}
+              </div>
+              <div class="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
+                <span>${this.escapeHtml(h.asset_group_name || 'Global')}</span>
+                <span>•</span>
+                <span class="font-semibold text-indigo-600 dark:text-indigo-400">${h.vuln_count} vulns</span>
+                ${h.critical_count > 0 ? `<span class="badge-critical px-1 rounded font-bold">${h.critical_count} Críticas</span>` : ''}
+                ${h.high_count > 0 ? `<span class="badge-high px-1 rounded font-bold">${h.high_count} Altas</span>` : ''}
+              </div>
+            </div>
+          </div>
+
+          <button type="button" onclick="App.toggleWizardHostItem('${ipEscaped}')" class="px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition shrink-0 ${
+            isAdded 
+              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+              : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs'
+          }">
+            ${isAdded ? '✓ Adicionado' : '+ Adicionar'}
+          </button>
+        </div>
+      `;
+    }).join('');
+    this.refreshIcons();
+  },
+
+  toggleWizardHostItem(ipOrHost) {
+    if (!this.state.planWizardSelectedHosts) this.state.planWizardSelectedHosts = [];
+    const ip = (typeof ipOrHost === 'object' && ipOrHost !== null) ? ipOrHost.ip : String(ipOrHost);
+    const idx = this.state.planWizardSelectedHosts.findIndex(h => h.ip === ip);
+    if (idx >= 0) {
+      this.state.planWizardSelectedHosts.splice(idx, 1);
     } else {
-      if (hostWrapper) hostWrapper.classList.add('hidden');
-      if (pluginWrapper) pluginWrapper.classList.add('hidden');
-      if (autolinkWrapper) autolinkWrapper.classList.add('hidden');
+      const candidate = (this.state.planWizardCandidateHosts || []).find(h => h.ip === ip);
+      if (candidate) {
+        this.state.planWizardSelectedHosts.push({ ...candidate });
+      } else if (typeof ipOrHost === 'object') {
+        this.state.planWizardSelectedHosts.push(ipOrHost);
+      }
+    }
+    this.renderWizardSelectedHosts();
+    this.renderWizardCandidateHosts();
+  },
+
+  selectAllCandidateHosts() {
+    if (!this.state.planWizardSelectedHosts) this.state.planWizardSelectedHosts = [];
+    const selectedIps = new Set(this.state.planWizardSelectedHosts.map(h => h.ip));
+    const candidates = this.state.planWizardCandidateHosts || [];
+    for (const c of candidates) {
+      if (!selectedIps.has(c.ip)) {
+        this.state.planWizardSelectedHosts.push({ ...c });
+        selectedIps.add(c.ip);
+      }
+    }
+    this.renderWizardSelectedHosts();
+    this.renderWizardCandidateHosts();
+  },
+
+  removeWizardHost(ip) {
+    if (!this.state.planWizardSelectedHosts) return;
+    this.state.planWizardSelectedHosts = this.state.planWizardSelectedHosts.filter(h => h.ip !== ip);
+    this.renderWizardSelectedHosts();
+    this.renderWizardCandidateHosts();
+    if (this.state.planWizardStep === 3) {
+      this.updateWizardImpactPreview();
+    }
+  },
+
+  clearWizardHosts() {
+    this.state.planWizardSelectedHosts = [];
+    this.renderWizardSelectedHosts();
+    this.renderWizardCandidateHosts();
+    if (this.state.planWizardStep === 3) {
+      this.updateWizardImpactPreview();
+    }
+  },
+
+  renderWizardSelectedHosts() {
+    const listEl = document.getElementById('plan-wizard-selected-hosts-list');
+    const countBadge = document.getElementById('plan-wizard-selected-hosts-count');
+    const clearBtn = document.getElementById('btn-clear-wizard-hosts');
+    const hosts = this.state.planWizardSelectedHosts || [];
+
+    if (countBadge) countBadge.textContent = String(hosts.length);
+    if (clearBtn) clearBtn.classList.toggle('hidden', hosts.length === 0);
+
+    if (!listEl) return;
+
+    if (hosts.length === 0) {
+      listEl.innerHTML = `
+        <div class="text-center py-4 text-slate-400 text-[11px] space-y-1">
+          <p class="font-medium text-slate-500 dark:text-slate-400">Nenhum host específico selecionado.</p>
+          <p class="text-[10px] text-slate-400">Ao avançar sem hosts, o plano terá escopo por Vulnerabilidade (Plugin) e abrangerá todos os hosts do grupo.</p>
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = hosts.map(h => `
+      <div class="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 shadow-2xs text-[11px]">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="w-6 h-6 rounded-md flex items-center justify-center bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 shrink-0">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+          </span>
+          <div class="min-w-0">
+            <div class="font-bold text-slate-800 dark:text-slate-200 truncate flex items-center gap-1.5">
+              <span>${this.escapeHtml(h.ip)}</span>
+              ${h.hostname ? `<span class="text-slate-400 font-normal truncate">(${this.escapeHtml(h.hostname)})</span>` : ''}
+            </div>
+            <div class="text-[10px] text-slate-400 flex items-center gap-1.5">
+              <span>${this.escapeHtml(h.asset_group_name || 'Global')}</span>
+              <span>•</span>
+              <span class="text-indigo-600 dark:text-indigo-400 font-medium">${h.vuln_count || 0} vulnerabilidades ativas</span>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" onclick="App.removeWizardHost('${this.escapeHtml(h.ip)}')" class="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 cursor-pointer transition shrink-0" title="Remover host do plano">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+    `).join('');
+    this.refreshIcons();
+  },
+
+  // --- VULNERABILITY SELECTION (ETAPA 3) ---
+  setupWizardStep3View() {
+    const hosts = this.state.planWizardSelectedHosts || [];
+    const modeWrapper = document.getElementById('plan-wizard-vuln-mode-wrapper');
+    const pickerSection = document.getElementById('plan-wizard-vuln-picker-section');
+    const pickerLabel = document.getElementById('plan-wizard-vuln-picker-label');
+    const contextDesc = document.getElementById('plan-wizard-step3-context-desc');
+
+    const radioAll = document.getElementById('wizard-vuln-mode-all');
+    const radioCustom = document.getElementById('wizard-vuln-mode-custom');
+    const lblAll = document.getElementById('plan-wizard-mode-label-all');
+    const lblCustom = document.getElementById('plan-wizard-mode-label-custom');
+
+    if (hosts.length > 0) {
+      if (modeWrapper) modeWrapper.classList.remove('hidden');
+      if (contextDesc) {
+        contextDesc.textContent = `${hosts.length} asset(s) selecionado(s). Caso nenhuma vulnerabilidade seja selecionada, todas as vulnerabilidades ativas desses assets entrarão no plano.`;
+      }
+      if (this.state.planWizardVulnMode === 'ALL') {
+        if (pickerSection) pickerSection.classList.add('hidden');
+        if (radioAll) radioAll.checked = true;
+        if (lblAll && lblCustom) {
+          lblAll.className = 'flex items-center gap-2.5 p-2.5 rounded-xl border border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/40 cursor-pointer transition';
+          lblCustom.className = 'flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 cursor-pointer transition';
+        }
+      } else {
+        if (pickerSection) pickerSection.classList.remove('hidden');
+        if (pickerLabel) pickerLabel.textContent = 'Selecione as Vulnerabilidades Específicas';
+        if (radioCustom) radioCustom.checked = true;
+        if (lblAll && lblCustom) {
+          lblCustom.className = 'flex items-center gap-2.5 p-2.5 rounded-xl border border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/40 cursor-pointer transition';
+          lblAll.className = 'flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 cursor-pointer transition';
+        }
+        this.loadWizardCandidateVulns(document.getElementById('plan-wizard-vuln-search')?.value || '');
+      }
+    } else {
+      // Sem hosts: escopo por Vulnerabilidade
+      if (modeWrapper) modeWrapper.classList.add('hidden');
+      if (pickerSection) pickerSection.classList.remove('hidden');
+      if (pickerLabel) pickerLabel.textContent = 'Selecione as Vulnerabilidades Alvo (Plugins)';
+      if (contextDesc) {
+        contextDesc.textContent = 'Nenhum host específico foi selecionado na Etapa 2. O plano será automaticamente associado a todos os hosts que contêm as vulnerabilidades selecionadas no Grupo de Ativos.';
+      }
+      this.state.planWizardVulnMode = 'CUSTOM';
+      this.loadWizardCandidateVulns(document.getElementById('plan-wizard-vuln-search')?.value || '');
+    }
+    this.renderWizardSelectedPlugins();
+  },
+
+  setWizardVulnMode(mode) {
+    this.state.planWizardVulnMode = mode;
+    const radioAll = document.getElementById('wizard-vuln-mode-all');
+    const radioCustom = document.getElementById('wizard-vuln-mode-custom');
+    const lblAll = document.getElementById('plan-wizard-mode-label-all');
+    const lblCustom = document.getElementById('plan-wizard-mode-label-custom');
+
+    if (radioAll) radioAll.checked = (mode === 'ALL');
+    if (radioCustom) radioCustom.checked = (mode === 'CUSTOM');
+
+    if (lblAll && lblCustom) {
+      if (mode === 'ALL') {
+        lblAll.className = 'flex items-center gap-2.5 p-2.5 rounded-xl border border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/40 cursor-pointer transition';
+        lblCustom.className = 'flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 cursor-pointer transition';
+      } else {
+        lblCustom.className = 'flex items-center gap-2.5 p-2.5 rounded-xl border border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/40 cursor-pointer transition';
+        lblAll.className = 'flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 cursor-pointer transition';
+      }
+    }
+
+    this.setupWizardStep3View();
+    this.updateWizardImpactPreview();
+  },
+
+  wizardVulnSearchTimeout: null,
+  handleWizardVulnSearch(val) {
+    clearTimeout(this.wizardVulnSearchTimeout);
+    this.wizardVulnSearchTimeout = setTimeout(() => {
+      this.loadWizardCandidateVulns(val);
+    }, 250);
+  },
+
+  async loadWizardCandidateVulns(search = '') {
+    const listEl = document.getElementById('plan-wizard-candidate-vulns');
+    if (!listEl) return;
+
+    listEl.innerHTML = `<div class="text-center py-2 text-[11px] text-slate-400"><i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin inline mr-1 text-indigo-500"></i>Buscando vulnerabilidades...</div>`;
+    this.refreshIcons();
+
+    try {
+      const groupId = document.getElementById('plan-form-asset-group')?.value || '';
+      const hosts = this.state.planWizardSelectedHosts || [];
+      const hostIps = hosts.map(h => h.ip).join(',');
+
+      const vulns = await API.getWizardVulnerabilities(groupId, hostIps, search);
+      this.state.planWizardCandidatePlugins = vulns || [];
+      this.renderWizardCandidateVulns();
+    } catch (err) {
+      listEl.innerHTML = `<div class="text-center py-2 text-[11px] text-rose-500">Erro ao buscar vulnerabilidades: ${this.escapeHtml(err.message)}</div>`;
+    }
+  },
+
+  renderWizardCandidateVulns() {
+    const listEl = document.getElementById('plan-wizard-candidate-vulns');
+    if (!listEl) return;
+
+    const vulns = this.state.planWizardCandidatePlugins || [];
+    if (vulns.length === 0) {
+      listEl.innerHTML = `<div class="text-center py-3 text-[11px] text-slate-400">Nenhuma vulnerabilidade ativa encontrada para os critérios selecionados.</div>`;
+      return;
+    }
+
+    const selectedPids = new Set((this.state.planWizardSelectedPlugins || []).map(p => String(p.plugin_id)));
+
+    listEl.innerHTML = vulns.map(v => {
+      const isSelected = selectedPids.has(String(v.plugin_id));
+      const pidEscaped = this.escapeHtml(String(v.plugin_id));
+      const sevClass = v.severity === 'Critical' ? 'badge-critical' : (v.severity === 'High' ? 'badge-high' : (v.severity === 'Medium' ? 'badge-medium' : 'badge-low'));
+
+      return `
+        <div class="flex items-center justify-between p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800/80 transition border ${isSelected ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20' : 'border-transparent hover:border-slate-200 dark:hover:border-slate-700'} text-[11px]">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="${sevClass} px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">
+              ${this.escapeHtml(v.severity)}
+            </span>
+            <div class="min-w-0">
+              <div class="font-bold text-slate-800 dark:text-slate-200 truncate">
+                ${this.escapeHtml(v.plugin_name)}
+              </div>
+              <div class="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                <span>Plugin #${pidEscaped}</span>
+                ${v.cve ? `<span>• ${this.escapeHtml(v.cve)}</span>` : ''}
+                <span>•</span>
+                <span class="text-indigo-600 dark:text-indigo-400 font-semibold">${v.affected_hosts_count} host(s) afetado(s)</span>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" onclick="App.toggleWizardVulnItem('${pidEscaped}')" class="px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition shrink-0 ${
+            isSelected
+              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+              : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs'
+          }">
+            ${isSelected ? '✓ Selecionado' : '+ Selecionar'}
+          </button>
+        </div>
+      `;
+    }).join('');
+    this.refreshIcons();
+  },
+
+  toggleWizardVulnItem(pluginId) {
+    if (!this.state.planWizardSelectedPlugins) this.state.planWizardSelectedPlugins = [];
+    const pidStr = String(pluginId);
+    const idx = this.state.planWizardSelectedPlugins.findIndex(p => String(p.plugin_id) === pidStr);
+
+    if (idx >= 0) {
+      this.state.planWizardSelectedPlugins.splice(idx, 1);
+    } else {
+      const candidate = (this.state.planWizardCandidatePlugins || []).find(p => String(p.plugin_id) === pidStr);
+      if (candidate) {
+        this.state.planWizardSelectedPlugins.push({ ...candidate });
+      } else {
+        this.state.planWizardSelectedPlugins.push({
+          plugin_id: pidStr,
+          plugin_name: `Plugin #${pidStr}`,
+          severity: 'Medium',
+          cve: '',
+          affected_hosts_count: 1
+        });
+      }
+    }
+
+    this.renderWizardSelectedPlugins();
+    this.renderWizardCandidateVulns();
+    this.updateWizardImpactPreview();
+  },
+
+  selectAllCandidateVulns() {
+    if (!this.state.planWizardSelectedPlugins) this.state.planWizardSelectedPlugins = [];
+    const selectedPids = new Set(this.state.planWizardSelectedPlugins.map(p => String(p.plugin_id)));
+    const candidates = this.state.planWizardCandidatePlugins || [];
+    for (const c of candidates) {
+      if (!selectedPids.has(String(c.plugin_id))) {
+        this.state.planWizardSelectedPlugins.push({ ...c });
+        selectedPids.add(String(c.plugin_id));
+      }
+    }
+    this.renderWizardSelectedPlugins();
+    this.renderWizardCandidateVulns();
+    this.updateWizardImpactPreview();
+  },
+
+  clearSelectedVulns() {
+    this.state.planWizardSelectedPlugins = [];
+    this.renderWizardSelectedPlugins();
+    this.renderWizardCandidateVulns();
+    this.updateWizardImpactPreview();
+  },
+
+  removeWizardPlugin(pid) {
+    if (!this.state.planWizardSelectedPlugins) return;
+    this.state.planWizardSelectedPlugins = this.state.planWizardSelectedPlugins.filter(p => String(p.plugin_id) !== String(pid));
+    this.renderWizardSelectedPlugins();
+    this.renderWizardCandidateVulns();
+    this.updateWizardImpactPreview();
+  },
+
+  renderWizardSelectedPlugins() {
+    const listEl = document.getElementById('plan-wizard-selected-vulns-list');
+    const container = document.getElementById('plan-wizard-selected-vulns-container');
+    const plugins = this.state.planWizardSelectedPlugins || [];
+
+    if (container) container.classList.toggle('hidden', plugins.length === 0);
+    if (!listEl) return;
+
+    listEl.innerHTML = plugins.map(p => `
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-[11px]">
+        <span class="font-bold">#${this.escapeHtml(p.plugin_id)}</span>
+        <span class="truncate max-w-[150px]">${this.escapeHtml(p.plugin_name)}</span>
+        <button type="button" onclick="App.removeWizardPlugin('${this.escapeHtml(p.plugin_id)}')" class="hover:text-rose-500 cursor-pointer ml-0.5">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+      </span>
+    `).join('');
+    this.refreshIcons();
+  },
+
+  // --- IMPACT PREVIEW & RELATIONAL VALIDATION ---
+  async updateWizardImpactPreview() {
+    const detailsEl = document.getElementById('plan-wizard-impact-details');
+    const badgeEl = document.getElementById('plan-wizard-impact-badge');
+    const errBox = document.getElementById('action-plan-form-error');
+    if (errBox) errBox.classList.add('hidden');
+
+    if (!detailsEl || !badgeEl) return;
+
+    detailsEl.innerHTML = `<div class="py-1 text-slate-400 text-center"><i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin inline mr-1 text-indigo-500"></i>Calculando abrangência e validação relacional...</div>`;
+    this.refreshIcons();
+
+    const hosts = this.state.planWizardSelectedHosts || [];
+    const plugins = this.state.planWizardSelectedPlugins || [];
+    const vulnMode = this.state.planWizardVulnMode || 'ALL';
+    const groupId = document.getElementById('plan-form-asset-group')?.value || null;
+
+    let scopeType = 'HOST';
+    let targetHostIp = null;
+    let targetPluginId = null;
+    let scopeHostIps = [];
+    let scopePluginIds = [];
+
+    if (hosts.length === 0 && plugins.length > 0) {
+      if (plugins.length === 1) {
+        scopeType = 'VULNERABILITY';
+        targetPluginId = String(plugins[0].plugin_id);
+      } else {
+        scopeType = 'MATRIX_NN';
+        scopeHostIps = [];
+        scopePluginIds = plugins.map(p => String(p.plugin_id));
+      }
+    } else if (hosts.length === 1 && vulnMode === 'ALL') {
+      scopeType = 'HOST';
+      targetHostIp = hosts[0].ip;
+    } else if (hosts.length >= 1 && vulnMode === 'ALL') {
+      scopeType = 'MATRIX_NN';
+      scopeHostIps = hosts.map(h => h.ip);
+      scopePluginIds = [];
+    } else if (hosts.length >= 1 && plugins.length > 0) {
+      scopeType = 'MATRIX_NN';
+      scopeHostIps = hosts.map(h => h.ip);
+      scopePluginIds = plugins.map(p => String(p.plugin_id));
+    } else {
+      badgeEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
+      badgeEl.textContent = 'Aguardando Seleção';
+      detailsEl.innerHTML = `<p class="text-slate-400 text-center py-1">Selecione ao menos um host na Etapa 2 ou uma vulnerabilidade acima para calcular o impacto.</p>`;
+      return;
+    }
+
+    try {
+      const res = await API.previewActionPlanImpact({
+        scope_type: scopeType,
+        asset_group_id: groupId ? parseInt(groupId, 10) : null,
+        target_host_ip: targetHostIp,
+        target_plugin_id: targetPluginId,
+        scope_host_ips: scopeHostIps,
+        scope_plugin_ids: scopePluginIds
+      });
+
+      if (!res.is_relational_valid) {
+        badgeEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300';
+        badgeEl.textContent = 'Escopo Inválido / Não Relacional';
+
+        detailsEl.innerHTML = `
+          <div class="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 space-y-1">
+            <div class="font-bold flex items-center gap-1">
+              <i data-lucide="alert-octagon" class="w-3.5 h-3.5 text-rose-600 dark:text-rose-400"></i>
+              <span>Crítica Relacional:</span>
+            </div>
+            <p class="text-[11px] leading-relaxed font-medium">
+              ${this.escapeHtml(res.validation_message || 'Inconsistência relacional entre hosts e plugins informados.')}
+            </p>
+          </div>
+        `;
+        this.refreshIcons();
+        return;
+      }
+
+      badgeEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300';
+      badgeEl.textContent = '✓ Relacional Válido (ISO 27001)';
+
+      const sev = res.severity_distribution || {};
+      detailsEl.innerHTML = `
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between font-bold text-slate-800 dark:text-slate-200">
+            <span>Total de Apontamentos Vinculados:</span>
+            <span class="font-mono text-sm text-indigo-600 dark:text-indigo-400">${res.total_vulnerabilities} vulnerabilidades</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 pt-0.5 text-[11px]">
+            <span class="badge-critical px-1.5 py-0.5 rounded font-bold">${sev.Critical || 0} Críticas</span>
+            <span class="badge-high px-1.5 py-0.5 rounded font-bold">${sev.High || 0} Altas</span>
+            <span class="badge-medium px-1.5 py-0.5 rounded font-bold">${sev.Medium || 0} Médias</span>
+            <span class="badge-low px-1.5 py-0.5 rounded font-bold">${sev.Low || 0} Baixas</span>
+            <span class="text-slate-500 dark:text-slate-400 ml-auto font-mono">${res.unique_hosts_count} host(s) • ${res.unique_plugins_count} plugin(s)</span>
+          </div>
+          ${res.already_in_plan_count > 0 ? `
+            <div class="text-[10px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1 pt-0.5">
+              <i data-lucide="info" class="w-3 h-3"></i>
+              <span>${res.already_in_plan_count} ocorrência(s) já pertencem a outros planos e serão migradas conforme precedência ISO 27001.</span>
+            </div>
+          ` : ''}
+        </div>
+      `;
+      this.refreshIcons();
+    } catch (err) {
+      badgeEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300';
+      badgeEl.textContent = 'Erro';
+      detailsEl.innerHTML = `<div class="text-rose-500 text-[11px] py-1">Erro ao calcular impacto: ${this.escapeHtml(err.message)}</div>`;
     }
   },
 
   async openCreatePlanModal(prefill = {}) {
-    await this.populateActionPlanFormSelectors();
+    try {
+      await this.populateActionPlanFormSelectors();
+    } catch (err) {
+      console.warn('Aviso ao popular seletores do plano de ação:', err);
+    }
 
     const modal = document.getElementById('action-plan-modal');
     if (!modal) return;
 
-    document.getElementById('action-plan-modal-title').innerHTML = `
-      <i data-lucide="clipboard-check" class="w-5 h-5 text-indigo-600 dark:text-indigo-400"></i>
-      <span>Novo Plano de Ação</span>
-    `;
-    document.getElementById('action-plan-id').value = '';
-    document.getElementById('plan-form-title').value = prefill.title || '';
-    document.getElementById('plan-form-description').value = prefill.description || '';
-    document.getElementById('plan-form-priority').value = prefill.priority || 'HIGH';
-    document.getElementById('plan-form-status').value = prefill.status || 'PLANNED';
-    document.getElementById('plan-form-due-date').value = prefill.due_date ? prefill.due_date.substring(0, 10) : '';
-    document.getElementById('plan-form-autolink').checked = true;
+    // Reset Wizard State
+    this.state.planWizardSelectedHosts = [];
+    this.state.planWizardSelectedPlugins = [];
+    this.state.planWizardVulnMode = 'ALL';
 
-    if (prefill.asset_group_id) {
-      document.getElementById('plan-form-asset-group').value = String(prefill.asset_group_id);
-    }
-    if (prefill.scope_type) {
-      document.getElementById('plan-form-scope-type').value = prefill.scope_type;
-    } else {
-      document.getElementById('plan-form-scope-type').value = 'HOST';
-    }
-    this.handleScopeTypeChange();
+    try {
+      document.getElementById('action-plan-modal-title').innerHTML = `
+        <i data-lucide="clipboard-check" class="w-5 h-5 text-indigo-600 dark:text-indigo-400"></i>
+        <span>Novo Plano de Ação</span>
+      `;
+      document.getElementById('action-plan-id').value = '';
+      document.getElementById('plan-form-title').value = prefill.title || '';
+      document.getElementById('plan-form-description').value = prefill.description || '';
+      document.getElementById('plan-form-priority').value = prefill.priority || 'HIGH';
+      document.getElementById('plan-form-status').value = prefill.status || 'PLANNED';
+      document.getElementById('plan-form-due-date').value = prefill.due_date ? prefill.due_date.substring(0, 10) : '';
+      document.getElementById('plan-form-autolink').checked = true;
 
-    const hostSelect = document.getElementById('plan-form-target-host');
-    if (hostSelect) {
-      const targetId = prefill.target_host_id != null ? String(prefill.target_host_id) : '';
-      const targetIp = prefill.target_host_ip ? String(prefill.target_host_ip) : '';
-      let matched = false;
+      document.getElementById('plan-form-tags').value = Array.isArray(prefill.tags) ? prefill.tags.join(', ') : (prefill.tags || '');
 
-      if (targetId) {
-        for (let i = 0; i < hostSelect.options.length; i++) {
-          if (hostSelect.options[i].value === targetId) {
-            hostSelect.value = targetId;
-            matched = true;
-            break;
-          }
-        }
+      const groupEl = document.getElementById('plan-form-asset-group');
+      if (prefill.asset_group_id) {
+        if (groupEl) groupEl.value = String(prefill.asset_group_id);
+      } else if (groupEl && (!groupEl.value || groupEl.value === '')) {
+        const hierarchical = this.buildHierarchicalGroupList(this.state.assetGroups || []);
+        const firstGid = hierarchical.length > 0 ? String(hierarchical[0].id) : (this.state.assetGroups?.[0]?.id ? String(this.state.assetGroups[0].id) : '');
+        if (firstGid) groupEl.value = firstGid;
       }
-      if (!matched && targetIp) {
-        for (let i = 0; i < hostSelect.options.length; i++) {
-          const optVal = hostSelect.options[i].value;
-          const optText = hostSelect.options[i].textContent || '';
-          if (optVal === targetIp || optText.includes(targetIp)) {
-            hostSelect.selectedIndex = i;
-            matched = true;
-            break;
-          }
-        }
+
+      // Pre-carregamento dinâmico de host
+      if (prefill.target_host_ip || prefill.target_host_id) {
+        const ip = prefill.target_host_ip || '';
+        this.state.planWizardSelectedHosts.push({
+          id: prefill.target_host_id || null,
+          ip: ip,
+          hostname: prefill.target_host_name || '',
+          asset_group_id: prefill.asset_group_id || null,
+          asset_group_name: '',
+          vuln_count: 0
+        });
       }
-      if (!matched && (targetId || targetIp)) {
-        const opt = document.createElement('option');
-        opt.value = targetId || targetIp;
-        opt.textContent = targetIp || `Host #${targetId}`;
-        hostSelect.appendChild(opt);
-        hostSelect.value = opt.value;
+
+      // Pre-carregamento dinâmico de plugin
+      if (prefill.target_plugin_id) {
+        this.state.planWizardSelectedPlugins.push({
+          plugin_id: String(prefill.target_plugin_id),
+          plugin_name: prefill.target_plugin_name || `Plugin #${prefill.target_plugin_id}`,
+          severity: prefill.priority || 'High',
+          cve: '',
+          affected_hosts_count: 1
+        });
+        this.state.planWizardVulnMode = 'CUSTOM';
       }
-    }
 
-    if (prefill.target_plugin_id) {
-      document.getElementById('plan-form-target-plugin').value = String(prefill.target_plugin_id);
-    }
+      const autolinkWrapper = document.getElementById('plan-form-autolink-wrapper');
+      if (autolinkWrapper) autolinkWrapper.classList.remove('hidden');
 
-    const autolinkWrapper = document.getElementById('plan-form-autolink-wrapper');
-    if (autolinkWrapper && (prefill.scope_type === 'HOST' || prefill.scope_type === 'VULNERABILITY' || !prefill.scope_type)) {
-      autolinkWrapper.classList.remove('hidden');
+      const errBox = document.getElementById('action-plan-form-error');
+      if (errBox) errBox.classList.add('hidden');
+    } catch (err) {
+      console.warn('Erro ao configurar campos do plano de ação:', err);
     }
-
-    const errBox = document.getElementById('action-plan-form-error');
-    if (errBox) errBox.classList.add('hidden');
 
     modal.classList.remove('hidden');
+    this.goToPlanWizardStep(1);
     this.refreshIcons();
   },
 
@@ -5131,15 +5912,20 @@ const App = {
     
     this.closeHostModal();
     this.navigate('actionPlans');
-    await this.openCreatePlanModal({
-      scope_type: 'HOST',
-      target_host_id: host?.id || null,
-      target_host_ip: ip || null,
-      asset_group_id: host?.asset_group_id || null,
-      title: `Plano de Remediação - Host ${ip}${name && name !== 'Sem hostname' && name !== '-' ? ` (${name})` : ''}`,
-      description: `Iniciativa de remediação e conformidade cibernética para o ativo ${ip}.`,
-      priority: 'HIGH'
-    });
+    try {
+      await this.openCreatePlanModal({
+        scope_type: 'HOST',
+        target_host_id: host?.id || null,
+        target_host_ip: ip || null,
+        target_host_name: name || null,
+        asset_group_id: host?.asset_group_id || null,
+        title: `Plano de Remediação - Host ${ip}${name && name !== 'Sem hostname' && name !== '-' ? ` (${name})` : ''}`,
+        description: `Iniciativa de remediação e conformidade cibernética para o ativo ${ip}.`,
+        priority: 'HIGH'
+      });
+    } catch (e) {
+      console.error('Erro ao abrir plano do host:', e);
+    }
   },
 
   async openCreatePlanModalFromVuln() {
@@ -5149,16 +5935,22 @@ const App = {
     
     this.closeVulnDetailsModal();
     this.navigate('actionPlans');
-    await this.openCreatePlanModal({
-      scope_type: 'VULNERABILITY',
-      target_plugin_id: pluginId,
-      target_host_id: v?.host_id || null,
-      target_host_ip: v?.host_ip || null,
-      asset_group_id: v?.asset_group_id || null,
-      title: `Plano de Remediação: ${title.substring(0, 100)}`,
-      description: `Remediação técnica da vulnerabilidade (Plugin ID: ${pluginId}).`,
-      priority: (v?.severity || 'HIGH').toUpperCase()
-    });
+    try {
+      await this.openCreatePlanModal({
+        scope_type: 'VULNERABILITY',
+        target_plugin_id: pluginId,
+        target_plugin_name: title,
+        target_host_id: v?.host_id || null,
+        target_host_ip: v?.host_ip || null,
+        target_host_name: v?.host_name || null,
+        asset_group_id: v?.asset_group_id || null,
+        title: `Plano de Remediação: ${title.substring(0, 100)}`,
+        description: `Remediação técnica da vulnerabilidade (Plugin ID: ${pluginId}).`,
+        priority: (v?.severity || 'HIGH').toUpperCase()
+      });
+    } catch (e) {
+      console.error('Erro ao abrir plano da vulnerabilidade:', e);
+    }
   },
 
   async openCreatePlanModalFromPlugin() {
@@ -5167,13 +5959,18 @@ const App = {
     
     this.closePluginSolutionModal();
     this.navigate('actionPlans');
-    await this.openCreatePlanModal({
-      scope_type: 'VULNERABILITY',
-      target_plugin_id: pluginId,
-      title: `Plano de Correção: ${title.substring(0, 100)}`,
-      description: `Execução do plano de correção técnica para o Plugin ID ${pluginId}.`,
-      priority: 'HIGH'
-    });
+    try {
+      await this.openCreatePlanModal({
+        scope_type: 'VULNERABILITY',
+        target_plugin_id: pluginId,
+        target_plugin_name: title,
+        title: `Plano de Correção: ${title.substring(0, 100)}`,
+        description: `Execução do plano de correção técnica para o Plugin ID ${pluginId}.`,
+        priority: 'HIGH'
+      });
+    } catch (e) {
+      console.error('Erro ao abrir plano do plugin:', e);
+    }
   },
 
   async openEditPlanModal(planId) {
@@ -5190,35 +5987,62 @@ const App = {
       document.getElementById('action-plan-id').value = p.id;
       document.getElementById('plan-form-title').value = p.title || '';
       document.getElementById('plan-form-description').value = p.description || '';
-      document.getElementById('plan-form-scope-type').value = p.scope_type || 'HOST';
-      this.handleScopeTypeChange();
 
       if (p.asset_group_id) {
         document.getElementById('plan-form-asset-group').value = String(p.asset_group_id);
       }
-      if (p.target_host_id) {
-        const hostSelect = document.getElementById('plan-form-target-host');
-        if (hostSelect) {
-          hostSelect.value = String(p.target_host_id);
-          if (!hostSelect.value && p.target_host_ip) {
-            const opt = document.createElement('option');
-            opt.value = String(p.target_host_id);
-            opt.textContent = p.target_host_ip;
-            hostSelect.appendChild(opt);
-            hostSelect.value = opt.value;
-          }
-        }
-      }
-      if (p.target_plugin_id) {
-        document.getElementById('plan-form-target-plugin').value = String(p.target_plugin_id);
-      }
 
+      document.getElementById('plan-form-tags').value = (p.tags || []).map(t => t.name || t).join(', ');
       document.getElementById('plan-form-priority').value = p.priority || 'HIGH';
       document.getElementById('plan-form-status').value = p.status || 'PLANNED';
       if (p.owner_user_id) {
         document.getElementById('plan-form-owner').value = String(p.owner_user_id);
       }
       document.getElementById('plan-form-due-date').value = p.due_date ? p.due_date.substring(0, 10) : '';
+
+      // Populate wizard hosts
+      this.state.planWizardSelectedHosts = [];
+      if (p.scope_type === 'HOST' && (p.target_host_ip || p.target_host_id)) {
+        this.state.planWizardSelectedHosts.push({
+          id: p.target_host_id,
+          ip: p.target_host_ip || `Host #${p.target_host_id}`,
+          hostname: p.target_host_name || '',
+          asset_group_name: p.asset_group_name || 'Global',
+          vuln_count: 0
+        });
+      } else if (p.scope_host_ips && p.scope_host_ips.length > 0) {
+        this.state.planWizardSelectedHosts = p.scope_host_ips.map(ip => ({
+          id: null,
+          ip: ip,
+          hostname: '',
+          asset_group_name: p.asset_group_name || 'Global',
+          vuln_count: 0
+        }));
+      }
+
+      // Populate wizard plugins
+      this.state.planWizardSelectedPlugins = [];
+      if (p.scope_type === 'VULNERABILITY' && p.target_plugin_id) {
+        this.state.planWizardSelectedPlugins.push({
+          plugin_id: String(p.target_plugin_id),
+          plugin_name: `Plugin #${p.target_plugin_id}`,
+          severity: 'High',
+          cve: '',
+          affected_hosts_count: 1
+        });
+        this.state.planWizardVulnMode = 'CUSTOM';
+      } else if (p.scope_plugin_ids && p.scope_plugin_ids.length > 0) {
+        this.state.planWizardSelectedPlugins = p.scope_plugin_ids.map(pid => ({
+          plugin_id: String(pid),
+          plugin_name: `Plugin #${pid}`,
+          severity: 'High',
+          cve: '',
+          affected_hosts_count: 1
+        }));
+        this.state.planWizardVulnMode = 'CUSTOM';
+      } else {
+        this.state.planWizardVulnMode = 'ALL';
+      }
 
       // Disable autolink on edit
       const autolinkWrapper = document.getElementById('plan-form-autolink-wrapper');
@@ -5228,6 +6052,7 @@ const App = {
       if (errBox) errBox.classList.add('hidden');
 
       modal.classList.remove('hidden');
+      this.goToPlanWizardStep(1);
       this.refreshIcons();
     } catch (err) {
       alert(`Erro ao abrir plano para edição: ${err.message}`);
@@ -5248,17 +6073,18 @@ const App = {
     const planId = document.getElementById('action-plan-id')?.value;
     const title = document.getElementById('plan-form-title')?.value.trim();
     const description = document.getElementById('plan-form-description')?.value.trim();
-    const scopeType = document.getElementById('plan-form-scope-type')?.value || 'HOST';
     const assetGroupId = document.getElementById('plan-form-asset-group')?.value;
-    const targetHostVal = document.getElementById('plan-form-target-host')?.value;
-    const targetPluginId = document.getElementById('plan-form-target-plugin')?.value.trim();
     const priority = document.getElementById('plan-form-priority')?.value || 'HIGH';
     const status = document.getElementById('plan-form-status')?.value || 'PLANNED';
     const ownerId = document.getElementById('plan-form-owner')?.value;
     const dueDate = document.getElementById('plan-form-due-date')?.value;
     const autoLink = document.getElementById('plan-form-autolink')?.checked;
 
+    const tagStr = document.getElementById('plan-form-tags')?.value || '';
+    const tags = tagStr.split(',').map(s => s.trim()).filter(Boolean);
+
     if (!title) {
+      this.goToPlanWizardStep(1);
       if (errBox) {
         errBox.textContent = 'O título do plano de ação é obrigatório.';
         errBox.classList.remove('hidden');
@@ -5266,14 +6092,47 @@ const App = {
       return;
     }
 
+    const hosts = this.state.planWizardSelectedHosts || [];
+    const plugins = this.state.planWizardSelectedPlugins || [];
+    const vulnMode = this.state.planWizardVulnMode || 'ALL';
+
+    if (hosts.length === 0 && plugins.length === 0) {
+      this.goToPlanWizardStep(2);
+      if (errBox) {
+        errBox.textContent = 'Selecione ao menos um host na Etapa 2 ou uma vulnerabilidade na Etapa 3.';
+        errBox.classList.remove('hidden');
+      }
+      return;
+    }
+
+    let scopeType = 'HOST';
     let targetHostIdNum = null;
     let targetHostIpStr = null;
-    if (scopeType === 'HOST' && targetHostVal) {
-      if (/^\d+$/.test(String(targetHostVal).trim())) {
-        targetHostIdNum = parseInt(targetHostVal, 10);
+    let targetPluginIdStr = null;
+    let scopeHostIps = [];
+    let scopePluginIds = [];
+
+    if (hosts.length === 0 && plugins.length > 0) {
+      if (plugins.length === 1) {
+        scopeType = 'VULNERABILITY';
+        targetPluginIdStr = String(plugins[0].plugin_id);
       } else {
-        targetHostIpStr = String(targetHostVal).trim();
+        scopeType = 'MATRIX_NN';
+        scopeHostIps = [];
+        scopePluginIds = plugins.map(p => String(p.plugin_id));
       }
+    } else if (hosts.length === 1 && vulnMode === 'ALL') {
+      scopeType = 'HOST';
+      targetHostIpStr = hosts[0].ip;
+      targetHostIdNum = hosts[0].id || null;
+    } else if (hosts.length >= 1 && vulnMode === 'ALL') {
+      scopeType = 'MATRIX_NN';
+      scopeHostIps = hosts.map(h => h.ip);
+      scopePluginIds = [];
+    } else if (hosts.length >= 1 && plugins.length > 0) {
+      scopeType = 'MATRIX_NN';
+      scopeHostIps = hosts.map(h => h.ip);
+      scopePluginIds = plugins.map(p => String(p.plugin_id));
     }
 
     const payload = {
@@ -5283,7 +6142,10 @@ const App = {
       asset_group_id: assetGroupId ? parseInt(assetGroupId, 10) : null,
       target_host_id: targetHostIdNum,
       target_host_ip: targetHostIpStr,
-      target_plugin_id: (scopeType === 'VULNERABILITY' && targetPluginId) ? targetPluginId : null,
+      target_plugin_id: targetPluginIdStr,
+      tags,
+      scope_host_ips: scopeHostIps,
+      scope_plugin_ids: scopePluginIds,
       priority,
       status,
       owner_user_id: ownerId ? parseInt(ownerId, 10) : null,
@@ -5309,11 +6171,12 @@ const App = {
       if (errBox) {
         errBox.textContent = `Erro ao salvar plano: ${err.message}`;
         errBox.classList.remove('hidden');
+        errBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     } finally {
       if (btn) {
         btn.disabled = false;
-        btn.textContent = 'Salvar Plano';
+        btn.textContent = 'Finalizar plano de ação';
       }
     }
   },
@@ -5366,8 +6229,18 @@ const App = {
       let targetText = '-';
       if (p.scope_type === 'HOST') targetText = p.target_host_ip ? `${p.target_host_ip}${p.target_host_name ? ` (${p.target_host_name})` : ''}` : '-';
       else if (p.scope_type === 'VULNERABILITY') targetText = p.target_plugin_id ? `Plugin ID #${p.target_plugin_id}` : '-';
+      else if (p.scope_type === 'MATRIX_NN') targetText = `Matriz: ${(p.scope_host_ips || []).join(', ') || 'Nenhum host'} × Plugins: ${(p.scope_plugin_ids || []).join(', ') || 'Nenhum'}`;
       else if (p.scope_type === 'GROUP') targetText = p.asset_group_name || '-';
       document.getElementById('plan-detail-target').textContent = targetText;
+
+      const tagsContainer = document.getElementById('plan-detail-tags-container');
+      if (tagsContainer) {
+        if (p.tags && p.tags.length > 0) {
+          tagsContainer.innerHTML = p.tags.map(t => `<span class="px-2 py-0.5 rounded text-[10px] font-semibold" style="background-color: ${(t.color || '#6366f1')}20; color: ${t.color || '#6366f1'}; border: 1px solid ${(t.color || '#6366f1')}40;">${this.escapeHtml(t.name || t)}</span>`).join('');
+        } else {
+          tagsContainer.innerHTML = '';
+        }
+      }
 
       document.getElementById('plan-detail-owner').textContent = p.owner_user_name || '-';
       document.getElementById('plan-detail-due').textContent = p.due_date ? new Date(p.due_date).toLocaleDateString('pt-BR') : 'Sem prazo fixado';

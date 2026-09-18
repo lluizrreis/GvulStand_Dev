@@ -195,6 +195,7 @@ def get_dashboard_stats(
     cves_total = set()
 
     treatment_breakdown = {
+        "In_Action_Plan": {"total": 0, "critical": 0, "high": 0, "medium": 0, "low": 0},
         "In_Remediation": {"total": 0, "critical": 0, "high": 0, "medium": 0, "low": 0},
         "Accepted_Risk": {"total": 0, "critical": 0, "high": 0, "medium": 0, "low": 0},
         "Remediated": {"total": 0, "critical": 0, "high": 0, "medium": 0, "low": 0},

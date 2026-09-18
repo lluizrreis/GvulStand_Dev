@@ -358,6 +358,16 @@ html:not(.dark) .glass-panel-hover:hover {
 }
 
 /* ==========================================================================
+   Central Content Layout - 90% Horizontal Space Utilization
+   ========================================================================== */
+#app-view main {
+  width: 98% !important;
+  max-width: none !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* ==========================================================================
    Sidebar & Vertical Navigation (Menu em coluna do lado esquerdo)
    ========================================================================== */
 #app-sidebar {
@@ -376,7 +386,22 @@ html.dark #app-sidebar {
 
 .sidebar-link {
   transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 0.75rem;
+  border-radius: 0.625rem;
+  padding-top: 0.375rem !important;
+  padding-bottom: 0.375rem !important;
+}
+
+.sidebar-title {
+  line-height: 1.25 !important;
+}
+
+.sidebar-subtitle {
+  line-height: 1.15 !important;
+}
+
+.sidebar-icon-box {
+  padding: 0.25rem !important;
+  border-radius: 0.5rem;
 }
 
 html:not(.dark) .sidebar-link {

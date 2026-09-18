@@ -278,6 +278,9 @@ class ActionPlan(Base):
     target_host = relationship("Host")
     owner_user = relationship("User", foreign_keys=[owner_user_id])
     tasks = relationship("ActionTask", back_populates="action_plan", cascade="all, delete-orphan", order_by="ActionTask.order_index")
+    tag_links = relationship("ActionPlanTagLink", back_populates="action_plan", cascade="all, delete-orphan")
+    scope_hosts = relationship("ActionPlanHost", back_populates="action_plan", cascade="all, delete-orphan")
+    scope_plugins = relationship("ActionPlanPlugin", back_populates="action_plan", cascade="all, delete-orphan")
 
 
 class ActionTask(Base):
@@ -321,5 +324,74 @@ class ActionTaskVulnerabilityLink(Base):
 
     __table_args__ = (
         Index("ix_task_vuln_unique", "action_task_id", "vulnerability_id", unique=True),
+    )
+
+
+class Tag(Base):
+    """
+    Etiqueta/Tag para categorização transversal e governança de Planos de Ação (ex: SOX, PCI-DSS, Urgente, RedTeam).
+    """
+    __tablename__ = "tags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), unique=True, index=True, nullable=False)
+    color_hex = Column(String(10), default="#6366f1", nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+
+    action_plan_links = relationship("ActionPlanTagLink", back_populates="tag", cascade="all, delete-orphan")
+
+
+class ActionPlanTagLink(Base):
+    """
+    Associação N:N entre Planos de Ação e Tags.
+    """
+    __tablename__ = "action_plan_tags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    action_plan_id = Column(Integer, ForeignKey("action_plans.id", ondelete="CASCADE"), nullable=False, index=True)
+    tag_id = Column(Integer, ForeignKey("tags.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    action_plan = relationship("ActionPlan", back_populates="tag_links")
+    tag = relationship("Tag", back_populates="action_plan_links")
+
+    __table_args__ = (
+        Index("ix_plan_tag_unique", "action_plan_id", "tag_id", unique=True),
+    )
+
+
+class ActionPlanHost(Base):
+    """
+    Associação de múltiplos hosts em planos com escopo matricial N:N (MATRIX_NN).
+    """
+    __tablename__ = "action_plan_hosts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    action_plan_id = Column(Integer, ForeignKey("action_plans.id", ondelete="CASCADE"), nullable=False, index=True)
+    host_id = Column(Integer, ForeignKey("hosts.id", ondelete="SET NULL"), nullable=True, index=True)
+    host_ip = Column(String(100), nullable=False, index=True)
+
+    action_plan = relationship("ActionPlan", back_populates="scope_hosts")
+    host = relationship("Host")
+
+    __table_args__ = (
+        Index("ix_plan_host_unique", "action_plan_id", "host_ip", unique=True),
+    )
+
+
+class ActionPlanPlugin(Base):
+    """
+    Associação de múltiplos plugins/vulnerabilidades em planos com escopo matricial N:N (MATRIX_NN).
+    """
+    __tablename__ = "action_plan_plugins"
+
+    id = Column(Integer, primary_key=True, index=True)
+    action_plan_id = Column(Integer, ForeignKey("action_plans.id", ondelete="CASCADE"), nullable=False, index=True)
+    plugin_id = Column(String(50), nullable=False, index=True)
+    cve = Column(Text, nullable=True)
+
+    action_plan = relationship("ActionPlan", back_populates="scope_plugins")
+
+    __table_args__ = (
+        Index("ix_plan_plugin_unique", "action_plan_id", "plugin_id", unique=True),
     )
 

@@ -70,7 +70,11 @@ const API = {
       }
 
       if (!res.ok) {
-        throw new Error(data.detail || data.message || `Erro na requisição (Status ${res.status})`);
+        let msg = data.detail || data.message || `Erro na requisição (Status ${res.status})`;
+        if (Array.isArray(msg)) {
+          msg = msg.map(item => (typeof item === 'object' && item.msg ? `${(item.loc || []).slice(1).join('.')}: ${item.msg}` : String(item))).join('; ');
+        }
+        throw new Error(msg);
       }
       return data;
     } catch (err) {
@@ -365,6 +369,7 @@ const API = {
     if (params.status) query.append('status', params.status);
     if (params.priority) query.append('priority', params.priority);
     if (params.scope_type) query.append('scope_type', params.scope_type);
+    if (params.tag) query.append('tag', params.tag);
     if (params.search) query.append('search', params.search);
 
     const qs = query.toString();
@@ -378,8 +383,54 @@ const API = {
     return this.request(`/action-plans/stats${qs ? '?' + qs : ''}`);
   },
 
+  async getActionPlanTags() {
+    return this.request('/action-plans/tags');
+  },
+
+  async createActionPlanTag(data) {
+    return this.request('/action-plans/tags', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  async getUnassignedVulns(params = {}) {
+    const query = new URLSearchParams();
+    if (params.asset_group_id) query.append('asset_group_id', params.asset_group_id);
+    if (params.severity) query.append('severity', params.severity);
+    if (params.search) query.append('search', params.search);
+    if (params.limit) query.append('limit', params.limit);
+    if (params.offset) query.append('offset', params.offset);
+    const qs = query.toString();
+    return this.request(`/action-plans/unassigned-vulns${qs ? '?' + qs : ''}`);
+  },
+
+  async previewActionPlanImpact(data) {
+    return this.request('/action-plans/preview-impact', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
   async getActionPlanAssignees() {
     return this.request('/action-plans/assignees');
+  },
+
+  async getWizardHosts(assetGroupId = '', search = '') {
+    const query = new URLSearchParams();
+    if (assetGroupId) query.append('asset_group_id', assetGroupId);
+    if (search) query.append('search', search);
+    const qs = query.toString();
+    return this.request(`/action-plans/wizard/hosts${qs ? '?' + qs : ''}`);
+  },
+
+  async getWizardVulnerabilities(assetGroupId = '', hostIps = '', search = '') {
+    const query = new URLSearchParams();
+    if (assetGroupId) query.append('asset_group_id', assetGroupId);
+    if (hostIps) query.append('host_ips', hostIps);
+    if (search) query.append('search', search);
+    const qs = query.toString();
+    return this.request(`/action-plans/wizard/vulnerabilities${qs ? '?' + qs : ''}`);
   },
 
   async getActionPlan(planId) {

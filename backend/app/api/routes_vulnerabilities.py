@@ -41,6 +41,60 @@ def format_vuln_out(v: models.Vulnerability, ignored_ids: Optional[Set[str]] = N
         out.is_ignored_in_indicators = (v.plugin_id in ignored_ids) or (str(v.id) in ignored_ids)
     return out
 
+def populate_vuln_active_plans(vuln_items: List[schemas.VulnerabilityOut], db: Session):
+    if not vuln_items:
+        return
+    v_ids = [v.id for v in vuln_items]
+    links = db.query(
+        models.ActionTaskVulnerabilityLink.vulnerability_id,
+        models.ActionPlan.id,
+        models.ActionPlan.title
+    ).join(
+        models.ActionTask, models.ActionTaskVulnerabilityLink.action_task_id == models.ActionTask.id
+    ).join(
+        models.ActionPlan, models.ActionTask.action_plan_id == models.ActionPlan.id
+    ).filter(
+        models.ActionTaskVulnerabilityLink.vulnerability_id.in_(v_ids),
+        models.ActionPlan.status.in_(["PLANNED", "IN_PROGRESS"])
+    ).all()
+    plan_map = {row[0]: (row[1], row[2]) for row in links}
+    for item in vuln_items:
+        if item.id in plan_map:
+            item.active_action_plan_id, item.active_action_plan_title = plan_map[item.id]
+
+def populate_host_active_plans(host_items: List[schemas.HostOut], db: Session):
+    if not host_items:
+        return
+    h_ids = [h.id for h in host_items]
+    h_ips = [h.ip_address for h in host_items]
+    direct = db.query(
+        models.ActionPlan.target_host_id,
+        models.ActionPlan.id,
+        models.ActionPlan.title
+    ).filter(
+        models.ActionPlan.target_host_id.in_(h_ids),
+        models.ActionPlan.status.in_(["PLANNED", "IN_PROGRESS"])
+    ).all()
+    plan_map = {row[0]: (row[1], row[2]) for row in direct}
+
+    matrix = db.query(
+        models.ActionPlanHost.host_ip,
+        models.ActionPlan.id,
+        models.ActionPlan.title
+    ).join(
+        models.ActionPlan, models.ActionPlanHost.action_plan_id == models.ActionPlan.id
+    ).filter(
+        models.ActionPlanHost.host_ip.in_(h_ips),
+        models.ActionPlan.status.in_(["PLANNED", "IN_PROGRESS"])
+    ).all()
+    matrix_map = {row[0]: (row[1], row[2]) for row in matrix}
+
+    for item in host_items:
+        if item.id in plan_map:
+            item.active_action_plan_id, item.active_action_plan_title = plan_map[item.id]
+        elif item.ip_address in matrix_map:
+            item.active_action_plan_id, item.active_action_plan_title = matrix_map[item.ip_address]
+
 @router.get("", response_model=Union[schemas.PaginatedVulnerabilitiesOut, List[schemas.VulnerabilityOut]])
 def list_vulnerabilities(
     asset_group_id: Optional[int] = None,
@@ -52,6 +106,7 @@ def list_vulnerabilities(
     exploit_only: bool = False,
     has_exploit: Optional[str] = None,
     treatment_status: Optional[str] = None,
+    not_in_action_plan: bool = False,
     search: Optional[str] = None,
     exclude_ignored: bool = False,
     page: Optional[int] = None,
@@ -119,6 +174,18 @@ def list_vulnerabilities(
         query = query.filter(models.Vulnerability.exploit_available == True)
     if treatment_status:
         query = query.filter(models.Vulnerability.treatment_status == treatment_status)
+    if not_in_action_plan:
+        assigned_subq = db.query(models.ActionTaskVulnerabilityLink.vulnerability_id).join(
+            models.ActionTask, models.ActionTaskVulnerabilityLink.action_task_id == models.ActionTask.id
+        ).join(
+            models.ActionPlan, models.ActionTask.action_plan_id == models.ActionPlan.id
+        ).filter(
+            models.ActionPlan.status.in_(["PLANNED", "IN_PROGRESS"])
+        ).distinct()
+        query = query.filter(
+            models.Vulnerability.treatment_status.notin_(["Remediated", "Accepted_Risk"]),
+            ~models.Vulnerability.id.in_(assigned_subq)
+        )
     if search:
         term = f"%{search}%"
         query = query.filter(
@@ -154,9 +221,11 @@ def list_vulnerabilities(
         ps = max(1, min(page_size, 200))
         offset_val = (p - 1) * ps
         total_pages = max(1, math.ceil(total / ps))
-        items = ordered_query.offset(offset_val).limit(ps).all()
+        items_db = ordered_query.offset(offset_val).limit(ps).all()
+        formatted_items = [format_vuln_out(v, ignored_ids) for v in items_db]
+        populate_vuln_active_plans(formatted_items, db)
         return schemas.PaginatedVulnerabilitiesOut(
-            items=[format_vuln_out(v, ignored_ids) for v in items],
+            items=formatted_items,
             total=total,
             page=p,
             page_size=ps,
@@ -165,7 +234,9 @@ def list_vulnerabilities(
 
     lim = limit if limit is not None else 100
     vulns = ordered_query.offset(offset).limit(lim).all()
-    return [format_vuln_out(v, ignored_ids) for v in vulns]
+    formatted_vulns = [format_vuln_out(v, ignored_ids) for v in vulns]
+    populate_vuln_active_plans(formatted_vulns, db)
+    return formatted_vulns
 
 @router.get("/unique-hosts", response_model=List[dict])
 def get_unique_hosts(
@@ -348,6 +419,8 @@ def get_hosts_inventory(
         item.asset_group_name = h.asset_group.name if h.asset_group else ""
         items.append(item)
 
+    populate_host_active_plans(items, db)
+
     return schemas.PaginatedInventoryOut(
         items=items,
         total=total,
@@ -367,7 +440,9 @@ def get_vulnerability(
     v = db.query(models.Vulnerability).filter(models.Vulnerability.id == vuln_id).first()
     if not v:
         raise HTTPException(status_code=404, detail="Vulnerabilidade não encontrada.")
-    return format_vuln_out(v, get_ignored_ids_set(db))
+    out = format_vuln_out(v, get_ignored_ids_set(db))
+    populate_vuln_active_plans([out], db)
+    return out
 
 @router.patch("/{vuln_id}/treatment", response_model=schemas.VulnerabilityOut)
 def update_vulnerability_treatment(
@@ -522,4 +597,5 @@ def get_host_details(
     check_user_group_access(db, current_user, h.asset_group_id, action="view")
     out = schemas.HostOut.model_validate(h)
     out.asset_group_name = h.asset_group.name if h.asset_group else ""
+    populate_host_active_plans([out], db)
     return out
