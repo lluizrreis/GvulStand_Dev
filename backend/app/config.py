@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api"
     
     # Security / Auth
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "gvulstand-super-secret-jwt-key-change-in-production-2026")
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
     
